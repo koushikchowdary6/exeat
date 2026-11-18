@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """Synthetic books for the finance demo. Nothing here is a real company."""
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """Runtime gate, audit log, and approvals."""
 
 from agentleash.runtime.leash import Leash

@@ -1,6 +1,6 @@
 # Contributing
 
-Agentleash is a personal project under the Apache License 2.0. Issues and
+Agentleash is a personal project under the MIT License. Issues and
 pull requests are welcome. There is no company, no customers, and no private
 tracker behind this repository.
 
@@ -13,7 +13,7 @@ python3 -m pip install -e ".[dev]"
 python3 -m ruff check src tests
 python3 -m ruff format --check src tests
 python3 -m mypy src
-python3 -m pytest --cov=agentleash --cov-fail-under=85
+python3 -m pytest --cov=agentleash --cov-fail-under=90
 python3 -m agentleash demo
 ```
 

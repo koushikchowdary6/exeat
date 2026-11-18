@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """MCP gate."""
 
 from agentleash.mcp.server import Session, handle_message, serve

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """Decide allow, deny, or hold. Deny wins, and a hold never raises a ceiling.
 
 Check order:
@@ -19,7 +19,7 @@ from typing import Any
 
 from agentleash.brand import RESERVED_ARGUMENT_KINDS
 from agentleash.canon import canon, fingerprint
-from agentleash.decision import Decision, Effect
+from agentleash.decision import Check, Decision, Effect
 from agentleash.errors import PolicyError
 from agentleash.money import format_usd, parse_cents
 from agentleash.policy.check import (
@@ -48,22 +48,26 @@ def evaluate(
     approvals: Sequence[Mapping[str, Any]] = (),
     now: datetime | None = None,
     policy_hash: str | None = None,
+    spent: tuple[int, int] | None = None,
 ) -> Decision:
     moment = now.astimezone(UTC) if now else datetime.now(UTC)
     digest = policy_hash or policy.content_hash()
     if not isinstance(arguments, Mapping):
+        invalid = Check("fail", "args.invalid", "Denied: tool arguments must be an object.")
         return Decision(
             effect=Effect.DENY,
             rule="args.invalid",
-            reason="Denied: tool arguments must be an object.",
+            reason=invalid.detail,
             agent=agent_name,
             role="",
             tool=tool_name,
             fingerprint="",
             policy_hash=digest,
+            checks=(invalid,),
         )
     args = dict(arguments)
     token = fingerprint(agent_name, tool_name, args)
+    checks: list[Check] = []
 
     def finish(
         effect: Effect,
@@ -74,6 +78,8 @@ def evaluate(
         spend: int | None = None,
         approval_id: str | None = None,
     ) -> Decision:
+        status = "pass" if effect is Effect.ALLOW else "hold" if effect is Effect.REQUIRE_APPROVAL else "fail"
+        checks.append(Check(status, rule, reason))
         return Decision(
             effect=effect,
             rule=rule,
@@ -86,6 +92,7 @@ def evaluate(
             spend_cents=spend,
             approval_id=approval_id,
             arguments=canon(args),
+            checks=tuple(checks),
         )
 
     try:
@@ -100,6 +107,7 @@ def evaluate(
         effective = effective_for_agent(policy, agent_name)
     except PolicyError as exc:
         return finish(Effect.DENY, "policy.invalid", f"Denied: {exc}.")
+    checks.append(Check("pass", "agent.known", f"{agent_name} is bound to role {effective.role}."))
 
     tool = manifest.tool(tool_name)
     if tool is None:
@@ -116,6 +124,7 @@ def evaluate(
             f"Denied by default: tool {tool_name} is not granted to {agent_name} (role {effective.role}).",
             role=effective.role,
         )
+    checks.append(Check("pass", "tool.granted", f"{tool_name} is declared and granted."))
 
     classified, problem = _classify(tool, args)
     if problem is not None:
@@ -135,16 +144,28 @@ def evaluate(
         if found is not None:
             rule, reason = found
             return finish(Effect.DENY, rule, reason, role=effective.role)
+    checks.append(Check("pass", "scope.accepted", "Paths, URLs, tables, and recipients are inside scope."))
 
     amount, spend_problem = _sum_spend(classified)
     if spend_problem is not None:
         rule, reason = spend_problem
         return finish(Effect.DENY, rule, reason, role=effective.role, spend=amount)
     if amount is not None:
-        ceiling = _spend_ceiling_problem(effective, amount, history, moment)
+        ceiling = _spend_ceiling_problem(effective, amount, history, moment, spent=spent)
         if ceiling is not None:
             rule, reason = ceiling
             return finish(Effect.DENY, rule, reason, role=effective.role, spend=amount)
+        checks.append(Check("pass", "spend.within_ceiling", "The amount is inside the spend ceilings."))
+
+    denial = _matching_denial(approvals, agent_name, token, moment)
+    if denial is not None:
+        return finish(
+            Effect.DENY,
+            "approval.denied",
+            f"Denied: {denial.get('by', 'an operator')} denied this exact call.",
+            role=effective.role,
+            spend=amount,
+        )
 
     hold = _matching_approval(effective, tool_name, args)
     if hold is not None:
@@ -158,7 +179,7 @@ def evaluate(
                 role=effective.role,
                 spend=amount,
             )
-        today, total = committed_spend(history, agent=agent_name, now=moment)
+        today, total = _totals(history, agent_name, moment, spent)
         return finish(
             Effect.ALLOW,
             "approval.matched",
@@ -176,7 +197,7 @@ def evaluate(
             approval_id=str(approval["id"]),
         )
 
-    today, total = committed_spend(history, agent=agent_name, now=moment)
+    today, total = _totals(history, agent_name, moment, spent)
     return finish(
         Effect.ALLOW,
         "allow",
@@ -239,11 +260,24 @@ def _sum_spend(
     return total, None
 
 
+def _totals(
+    history: Sequence[Mapping[str, Any]],
+    agent: str,
+    now: datetime,
+    spent: tuple[int, int] | None,
+) -> tuple[int, int]:
+    if spent is not None:
+        return spent
+    return committed_spend(history, agent=agent, now=now)
+
+
 def _spend_ceiling_problem(
     effective: Effective,
     amount: int,
     history: Sequence[Mapping[str, Any]],
     now: datetime,
+    *,
+    spent: tuple[int, int] | None = None,
 ) -> tuple[str, str] | None:
     spend = effective.spend
     if spend.per_call is None:
@@ -257,7 +291,7 @@ def _spend_ceiling_problem(
             "spend.per_call",
             f"Denied: {format_usd(amount)} exceeds the per-call ceiling of {format_usd(spend.per_call)}.",
         )
-    today, total = committed_spend(history, agent=effective.subject, now=now)
+    today, total = _totals(history, effective.subject, now, spent)
     if spend.per_day is None:
         return (
             "spend.no_ceiling",
@@ -303,6 +337,31 @@ def _matching_approval(
         if value > rule.gt_cents:
             return rule
     return None
+
+
+def _matching_denial(
+    approvals: Sequence[Mapping[str, Any]],
+    agent: str,
+    token: str,
+    now: datetime,
+) -> Mapping[str, Any] | None:
+    chosen: Mapping[str, Any] | None = None
+    for record in approvals:
+        if record.get("type") != "denial":
+            continue
+        if record.get("agent") != agent or record.get("fingerprint") != token:
+            continue
+        expiry = record.get("expires")
+        if not isinstance(expiry, str):
+            continue
+        try:
+            expires_at = datetime.fromisoformat(expiry.replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        if expires_at <= now:
+            continue
+        chosen = record
+    return chosen
 
 
 def _matching_grant(

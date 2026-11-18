@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """What an agent newly gains between two policies.
 
 Role grants are compared after inheritance. Agent findings are only the

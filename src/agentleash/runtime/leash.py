@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """The runtime gate between an agent and a tool."""
 
 from __future__ import annotations
@@ -9,8 +9,10 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, TypeVar
 
+from agentleash.brand import LEDGER_FILENAME
 from agentleash.decision import ApprovalRequired, Decision, Denied, Effect
 from agentleash.errors import PolicyError
+from agentleash.ledger import Ledger
 from agentleash.policy.effective import effective_for_agent
 from agentleash.policy.evaluate import evaluate
 from agentleash.policy.load import load_manifest, load_policy
@@ -18,6 +20,7 @@ from agentleash.policy.model import Effective, Manifest, Policy
 from agentleash.runtime.approvals import ApprovalLog
 from agentleash.runtime.audit import AuditLog
 from agentleash.runtime.clock import Clock, SystemClock
+from agentleash.webhook import notify_hold
 
 T = TypeVar("T")
 
@@ -38,6 +41,8 @@ class Leash:
         audit: AuditLog,
         approvals: ApprovalLog,
         clock: Clock | None = None,
+        ledger: Ledger | None = None,
+        webhook_url: str | None = None,
     ) -> None:
         self.policy = policy
         self.manifest = manifest
@@ -45,6 +50,8 @@ class Leash:
         self.audit = audit
         self.approvals = approvals
         self.clock = clock or SystemClock()
+        self.ledger = ledger
+        self.webhook_url = webhook_url
         self.effective: Effective = effective_for_agent(policy, agent)
         self._check_manifest()
 
@@ -58,8 +65,11 @@ class Leash:
         audit_path: Path,
         approval_path: Path,
         clock: Clock | None = None,
+        ledger_path: Path | None = None,
+        webhook_url: str | None = None,
     ) -> Leash:
         chosen = clock or SystemClock()
+        ledger = Ledger.sqlite(ledger_path or audit_path.parent / LEDGER_FILENAME)
         return cls(
             load_policy(policy_path),
             load_manifest(manifest_path),
@@ -67,19 +77,25 @@ class Leash:
             AuditLog(audit_path, chosen),
             ApprovalLog(approval_path, chosen),
             chosen,
+            ledger,
+            webhook_url,
         )
 
     def decide(self, tool: str, arguments: dict[str, Any]) -> Decision:
+        spent = None
+        if self.ledger is not None:
+            spent = self.ledger.totals(self.agent, self.clock.now())
         return evaluate(
             self.policy,
             self.manifest,
             self.agent,
             tool,
             arguments,
-            history=self.audit.read(),
+            history=() if self.ledger is not None else self.audit.read(),
             approvals=self.approvals.read(),
             now=self.clock.now(),
             policy_hash=self.policy.content_hash(),
+            spent=spent,
         )
 
     def run(
@@ -89,18 +105,48 @@ class Leash:
         execute: Callable[[], T] | None,
     ) -> tuple[Decision, T | None]:
         decision = self.decide(tool, arguments)
-        will_run = decision.effect is Effect.ALLOW and execute is not None
-        audit_id = self.audit.record(decision, commit=will_run)
-        if will_run and decision.approval_id is not None:
-            self.approvals.consume(decision.approval_id, audit_id=audit_id)
-        if not will_run or execute is None:
+        if decision.effect is Effect.REQUIRE_APPROVAL:
+            notify_hold(self.webhook_url, decision)
+        if decision.effect is not Effect.ALLOW or execute is None:
+            self.audit.record(decision, commit=False)
             return decision, None
+        reservation_id = self._reserve(decision)
+        if reservation_id is False:
+            decision = self.decide(tool, arguments)
+            self.audit.record(decision, commit=False)
+            return decision, None
+        audit_id = self.audit.record(decision, commit=True)
+        if decision.approval_id is not None:
+            self.approvals.consume(decision.approval_id, audit_id=audit_id)
         try:
             result = execute()
         except Exception as exc:
+            if isinstance(reservation_id, str) and self.ledger is not None:
+                self.ledger.release(reservation_id)
             self.audit.release(audit_id, agent=self.agent, tool=tool, reason=str(exc))
             raise
+        if isinstance(reservation_id, str) and self.ledger is not None:
+            self.ledger.commit(reservation_id)
         return decision, result
+
+    def _reserve(self, decision: Decision) -> str | bool | None:
+        """Reserve spend. ``False`` means the atomic check denied the call."""
+
+        if self.ledger is None or not decision.spend_cents:
+            return None
+        ceilings = self.effective.spend
+        reserved = self.ledger.try_reserve(
+            agent=self.agent,
+            tool=decision.tool,
+            amount_cents=decision.spend_cents,
+            per_call=ceilings.per_call,
+            per_day=ceilings.per_day,
+            total=ceilings.total,
+            now=self.clock.now(),
+        )
+        if reserved.ok and reserved.reservation_id is not None:
+            return reserved.reservation_id
+        return False
 
     def guard(self, tool_name: str) -> Callable[[Callable[..., T]], Callable[..., T]]:
         """Decorator for a plain function. Denied and held calls raise."""

@@ -1,0 +1,27 @@
+# Field Notes is fictional. The research agent can read its notes and one
+# documentation site. It cannot send mail or move money.
+version: 1
+
+org:
+  name: Field Notes
+  unit: Research
+
+roles:
+  - name: researcher
+    description: Read the research tree and the documentation site.
+    tools:
+      - files.read
+      - notes.write
+      - http.get
+    scopes:
+      files:
+        allow:
+          - data/research/**
+      urls:
+        allow:
+          - https://docs.example/**
+
+agents:
+  - name: research-assistant
+    role: researcher
+    description: Reads source notes and writes summaries back into the research tree.

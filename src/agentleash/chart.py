@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """A plain-text org chart of roles, agents, and ceilings."""
 
 from __future__ import annotations

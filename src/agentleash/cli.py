@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """Command line. ``python -m agentleash demo`` is the quick start."""
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ import yaml
 from agentleash.brand import (
     APPROVAL_FILENAME,
     AUDIT_FILENAME,
+    LEDGER_FILENAME,
     MANIFEST_FILENAME,
     POLICY_FILENAME,
     PRODUCT_SLUG,
@@ -42,11 +43,12 @@ _FAIL_ON = ("note", "low", "medium", "high")
 
 
 class Paths:
-    def __init__(self, policy: Path, manifest: Path, audit: Path, approvals: Path, sandbox: Path) -> None:
+    def __init__(self, policy: Path, manifest: Path, audit: Path, approvals: Path, ledger: Path, sandbox: Path) -> None:
         self.policy = policy
         self.manifest = manifest
         self.audit = audit
         self.approvals = approvals
+        self.ledger = ledger
         self.sandbox = sandbox
 
 
@@ -88,7 +90,8 @@ def build_parser() -> argparse.ArgumentParser:
     diff.add_argument("--head-manifest", type=Path)
     diff.add_argument("--repo", type=Path, default=Path("."))
     diff.add_argument("--fail-on", choices=_FAIL_ON, default="medium")
-    diff.add_argument("--format", choices=("text", "json"), default="text")
+    diff.add_argument("--format", choices=("text", "json", "markdown", "sarif"), default="text")
+    diff.add_argument("--sarif-output", type=Path, default=None)
     diff.set_defaults(func=cmd_diff)
 
     check = commands.add_parser("check", help="decide one call without writing the audit log")
@@ -106,6 +109,51 @@ def build_parser() -> argparse.ArgumentParser:
     approve.add_argument("--by", default="operator")
     approve.add_argument("--ttl", type=int, default=1800)
     approve.set_defaults(func=cmd_approve)
+
+    deny = commands.add_parser("deny", help="deny one exact call")
+    _add_path_flags(deny)
+    deny.add_argument("--agent", required=True)
+    deny.add_argument("--tool", required=True)
+    deny.add_argument("--args", default="{}")
+    deny.add_argument("--by", default="operator")
+    deny.add_argument("--ttl", type=int, default=1800)
+    deny.set_defaults(func=cmd_deny)
+
+    explain = commands.add_parser("explain", help="show why a call is allowed, denied, or held")
+    _add_path_flags(explain)
+    explain.add_argument("--agent", required=True)
+    explain.add_argument("--tool", required=True)
+    explain.add_argument("--args", default="{}")
+    explain.set_defaults(func=cmd_explain)
+
+    validate = commands.add_parser("validate", help="load a policy and manifest and report schema errors")
+    _add_path_flags(validate)
+    validate.set_defaults(func=cmd_validate)
+
+    schema = commands.add_parser("schema", help="print the policy JSON Schema")
+    schema.set_defaults(func=cmd_schema)
+
+    cases = commands.add_parser("test", help="run policy cases from a YAML file")
+    cases.add_argument("cases", type=Path)
+    cases.set_defaults(func=cmd_cases)
+
+    keygen = commands.add_parser("keygen", help="write an Ed25519 policy signing keypair")
+    keygen.add_argument("--out", type=Path, required=True)
+    keygen.set_defaults(func=cmd_keygen)
+
+    sign = commands.add_parser("sign", help="sign a policy file")
+    sign.add_argument("--policy", type=Path, required=True)
+    sign.add_argument("--key", type=Path, required=True)
+    sign.set_defaults(func=cmd_sign)
+
+    verify = commands.add_parser("verify", help="verify a policy signature")
+    verify.add_argument("--policy", type=Path, required=True)
+    verify.add_argument("--public", type=Path, required=True, dest="public_key")
+    verify.set_defaults(func=cmd_verify)
+
+    hook = commands.add_parser("hook", help="pre-commit: diff policy files against HEAD")
+    hook.add_argument("--repo", type=Path, default=Path("."))
+    hook.set_defaults(func=cmd_hook)
 
     audit = commands.add_parser("audit", help="print the audit tape")
     _add_state_flags(audit)
@@ -131,6 +179,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="optional upstream command after -- , for example: -- python server.py",
     )
     mcp.set_defaults(func=cmd_mcp)
+
+    http = commands.add_parser("mcp-http", help="serve the gate over HTTP and SSE")
+    _add_path_flags(http)
+    http.add_argument("--agent", default=None)
+    http.add_argument("--host", default="127.0.0.1")
+    http.add_argument("--port", type=int, default=4748)
+    http.set_defaults(func=cmd_mcp_http)
     return parser
 
 
@@ -138,9 +193,13 @@ def cmd_demo(args: argparse.Namespace) -> int:
     args.example = True
     paths = resolve_paths(args, default_example=True)
     if not args.keep:
-        for path in (paths.audit, paths.approvals):
+        for path in (paths.audit, paths.approvals, paths.ledger):
             if path.exists():
                 path.unlink()
+        for suffix in ("-wal", "-shm"):
+            extra = Path(str(paths.ledger) + suffix)
+            if extra.exists():
+                extra.unlink()
     results = run_demo(
         root=paths.sandbox,
         audit_path=paths.audit,
@@ -159,10 +218,12 @@ def cmd_demo(args: argparse.Namespace) -> int:
 def cmd_diff(args: argparse.Namespace) -> int:
     base_policy, head_policy, base_manifest, head_manifest, base_label, head_label = _diff_inputs(args)
     findings = diff_documents(base_policy, head_policy, base_manifest, head_manifest)
-    if args.format == "json":
-        sys.stdout.write(render_json(findings, base_label=base_label, head_label=head_label, fail_on=args.fail_on))
-    else:
-        sys.stdout.write(render_text(findings, base_label=base_label, head_label=head_label, fail_on=args.fail_on))
+    rendered = _render_diff(findings, base_label, head_label, args.fail_on, args.format)
+    sys.stdout.write(rendered)
+    if args.sarif_output is not None:
+        from agentleash.diff.sarif import render_sarif
+
+        args.sarif_output.write_text(render_sarif(findings, policy_path=head_label), encoding="utf-8")
     return 1 if should_fail(findings, args.fail_on) else 0
 
 
@@ -191,6 +252,102 @@ def cmd_approve(args: argparse.Namespace) -> int:
     print(record["id"])
     print(f"fingerprint {record['fingerprint']}")
     print(f"expires     {record['expires']}")
+    return 0
+
+
+def cmd_deny(args: argparse.Namespace) -> int:
+    paths = resolve_paths(args, default_example=True)
+    record = ApprovalLog(paths.approvals).deny(
+        agent=args.agent,
+        tool=args.tool,
+        arguments=_parse_args(args.args),
+        by=args.by,
+        ttl_seconds=args.ttl,
+    )
+    print(record["id"])
+    print(f"fingerprint {record['fingerprint']}")
+    print(f"expires     {record['expires']}")
+    return 0
+
+
+def cmd_explain(args: argparse.Namespace) -> int:
+    from agentleash.explain import render_explanation
+
+    paths = resolve_paths(args, default_example=True)
+    decision = _leash(paths, args.agent).decide(args.tool, _parse_args(args.args))
+    sys.stdout.write(render_explanation(decision))
+    if decision.effect is Effect.ALLOW:
+        return 0
+    if decision.effect is Effect.REQUIRE_APPROVAL:
+        return 3
+    return 1
+
+
+def cmd_validate(args: argparse.Namespace) -> int:
+    paths = resolve_paths(args, default_example=True)
+    policy = load_policy(paths.policy)
+    manifest = load_manifest(paths.manifest)
+    print(f"policy   ok  {policy.content_hash()}  {len(policy.agents)} agents")
+    print(f"manifest ok  {manifest.content_hash()}  {len(manifest.tools)} tools")
+    return 0
+
+
+def cmd_schema(_args: argparse.Namespace) -> int:
+    from agentleash.policy.schema import POLICY_SCHEMA
+
+    print(json.dumps(POLICY_SCHEMA, indent=2))
+    return 0
+
+
+def cmd_cases(args: argparse.Namespace) -> int:
+    from agentleash.policy.cases import render_case_report, run_cases
+
+    count, failures = run_cases(args.cases)
+    sys.stdout.write(render_case_report(args.cases, count, failures))
+    return 1 if failures else 0
+
+
+def cmd_keygen(args: argparse.Namespace) -> int:
+    from agentleash.signing import generate_keypair
+
+    private_path, public_path = generate_keypair(args.out)
+    print(private_path)
+    print(public_path)
+    return 0
+
+
+def cmd_sign(args: argparse.Namespace) -> int:
+    from agentleash.signing import sign_file
+
+    destination = sign_file(args.policy, args.key)
+    print(destination)
+    return 0
+
+
+def cmd_verify(args: argparse.Namespace) -> int:
+    from agentleash.signing import verify_file
+
+    verify_file(args.policy, args.public_key)
+    print("signature ok")
+    return 0
+
+
+def cmd_hook(args: argparse.Namespace) -> int:
+    return _pre_commit(args.repo)
+
+
+def cmd_mcp_http(args: argparse.Namespace) -> int:
+    from agentleash.mcp.http import HttpGateway, serve_http, server_banner
+
+    paths = resolve_paths(args, default_example=True)
+    agent = args.agent or "finance-assistant"
+
+    def factory() -> Session:
+        leash = _leash(paths, agent)
+        return Session(leash, FinanceBackend(paths.sandbox), leash.manifest)
+
+    print(server_banner(args.host, args.port), flush=True)
+    serve_http(HttpGateway(factory), args.host, args.port)
     return 0
 
 
@@ -276,7 +433,8 @@ def resolve_paths(args: argparse.Namespace, *, default_example: bool) -> Paths:
         state = Path(STATE_DIRNAME)
     audit = Path(audit_arg) if audit_arg else state / AUDIT_FILENAME
     approvals = Path(approval_arg) if approval_arg else state / APPROVAL_FILENAME
-    return Paths(policy, manifest, audit, approvals, sandbox)
+    ledger = audit.parent / LEDGER_FILENAME
+    return Paths(policy, manifest, audit, approvals, ledger, sandbox)
 
 
 def _diff_inputs(args: argparse.Namespace) -> tuple[Any, Any, Any, Any, str, str]:
@@ -404,6 +562,89 @@ def _parse_args(raw: str) -> dict[str, Any]:
     if not isinstance(loaded, dict):
         raise AgentleashError("--args must be a JSON object")
     return loaded
+
+
+def _render_diff(
+    findings: list[Any],
+    base_label: str,
+    head_label: str,
+    fail_on: str,
+    fmt: str,
+) -> str:
+    if fmt == "json":
+        return render_json(findings, base_label=base_label, head_label=head_label, fail_on=fail_on)
+    if fmt == "markdown":
+        from agentleash.diff.markdown import render_markdown
+
+        return render_markdown(findings, base_label=base_label, head_label=head_label, fail_on=fail_on)
+    if fmt == "sarif":
+        from agentleash.diff.sarif import render_sarif
+
+        return render_sarif(findings, policy_path=head_label)
+    return render_text(findings, base_label=base_label, head_label=head_label, fail_on=fail_on)
+
+
+def _pre_commit(repo: Path) -> int:
+    import subprocess
+
+    proc = subprocess.run(
+        ["git", "diff", "--name-only", "HEAD"],
+        cwd=repo,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        print("not a git checkout; skipping permission diff")
+        return 0
+    names = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+    policies = [name for name in names if name.endswith(POLICY_FILENAME)]
+    if not policies:
+        print("no policy file changes")
+        return 0
+    exit_code = 0
+    for rel in policies:
+        head = repo / rel
+        if not head.is_file():
+            continue
+        base_text = _git_show_optional(repo, rel)
+        manifest = head.with_name(MANIFEST_FILENAME)
+        if base_text is None:
+            print(f"HIGH  {rel} is new. Review every grant before committing.")
+            exit_code = 1
+            continue
+        if not manifest.is_file():
+            print(f"error: {rel} has no {MANIFEST_FILENAME} beside it")
+            return 2
+        base_manifest = _git_show_optional(repo, str(Path(rel).with_name(MANIFEST_FILENAME)))
+        head_policy = load_policy(head)
+        base_policy = parse_policy(yaml.safe_load(base_text), source=f"HEAD:{rel}")
+        if base_manifest is None:
+            base_loaded = load_manifest(manifest)
+            head_loaded = base_loaded
+        else:
+            base_loaded = parse_manifest(yaml.safe_load(base_manifest), source=f"HEAD:{manifest.name}")
+            head_loaded = load_manifest(manifest)
+        findings = diff_documents(base_policy, head_policy, base_loaded, head_loaded)
+        sys.stdout.write(render_text(findings, base_label=f"HEAD:{rel}", head_label=rel, fail_on="medium", color=False))
+        if should_fail(findings, "medium"):
+            exit_code = 1
+    return exit_code
+
+
+def _git_show_optional(repo: Path, rel: str) -> str | None:
+    import subprocess
+
+    proc = subprocess.run(
+        ["git", "show", f"HEAD:{rel}"],
+        cwd=repo,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        return None
+    return proc.stdout
 
 
 def _format_event(event: dict[str, Any]) -> str:

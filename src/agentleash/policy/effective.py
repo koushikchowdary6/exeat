@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """Resolve inheritance. Agents can only narrow what a role already grants."""
 
 from __future__ import annotations

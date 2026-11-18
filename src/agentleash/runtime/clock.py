@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """Clocks so tests can pin the UTC day boundary."""
 
 from __future__ import annotations

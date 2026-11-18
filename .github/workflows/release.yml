@@ -1,0 +1,25 @@
+# Draft only. This workflow is not triggered by pushes or tags.
+# It builds a wheel and an sdist and stops. It does not upload to PyPI.
+name: Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build distributions
+        run: |
+          python -m pip install build
+          python -m build
+      - name: Do not publish
+        run: echo "Private :: Do Not Upload. These artifacts stay in the workflow run."
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/*

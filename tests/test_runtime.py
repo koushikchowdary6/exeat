@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 

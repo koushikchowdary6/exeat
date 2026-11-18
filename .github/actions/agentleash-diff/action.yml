@@ -1,8 +1,9 @@
 name: Agentleash permission diff
 description: >
-  Compare an agent policy and tool manifest between two git refs and fail
-  when an agent gains tools, spend, recipients, or scopes. Requires
-  `agentleash` on PATH (pip install -e . in this repo).
+  Compare an agent policy and tool manifest between two git refs.
+  Comments a markdown table on the pull request, writes SARIF, and fails
+  when an agent gains tools, spend, recipients, or scopes.
+  Requires the package on PATH (pip install -e .).
 
 inputs:
   base:
@@ -20,9 +21,17 @@ inputs:
     required: false
     default: examples/finance-assistant/tool-manifest.yaml
   fail-on:
-    description: Lowest severity that fails the job. high, medium, low, or note.
+    description: Lowest severity that fails the job.
     required: false
     default: medium
+
+outputs:
+  sarif:
+    description: Path of the SARIF file written in the workspace.
+    value: ${{ steps.diff.outputs.sarif }}
+  result:
+    description: Exit code of the diff. 0 means no risky escalation.
+    value: ${{ steps.diff.outputs.code }}
 
 runs:
   using: composite
@@ -32,18 +41,27 @@ runs:
       shell: bash
       run: |
         set +e
-        output=$(python -m agentleash diff \
+        python -m agentleash diff \
           --rev-base "${{ inputs.base }}" \
           --rev-head "${{ inputs.head }}" \
           --policy "${{ inputs.policy }}" \
           --manifest "${{ inputs.manifest }}" \
-          --fail-on "${{ inputs.fail-on }}")
+          --fail-on "${{ inputs.fail-on }}" \
+          --format markdown > permission-diff.md
         code=$?
+        python -m agentleash diff \
+          --rev-base "${{ inputs.base }}" \
+          --rev-head "${{ inputs.head }}" \
+          --policy "${{ inputs.policy }}" \
+          --manifest "${{ inputs.manifest }}" \
+          --fail-on "${{ inputs.fail-on }}" \
+          --format sarif > permission-diff.sarif || true
         echo "code=$code" >> "$GITHUB_OUTPUT"
+        echo "sarif=permission-diff.sarif" >> "$GITHUB_OUTPUT"
         delimiter="AGENTLEASH_DIFF_END"
         {
           echo "body<<${delimiter}"
-          printf '%s\n' "$output"
+          cat permission-diff.md
           echo "${delimiter}"
         } >> "$GITHUB_OUTPUT"
         exit 0
@@ -56,7 +74,7 @@ runs:
       with:
         script: |
           const marker = "<!-- agentleash-permission-diff -->";
-          const body = marker + "\n\n```\n" + (process.env.DIFF_BODY || "(no diff output)") + "\n```\n";
+          const body = marker + "\n\n" + (process.env.DIFF_BODY || "No diff output.");
           const { data: comments } = await github.rest.issues.listComments({
             owner: context.repo.owner,
             repo: context.repo.repo,
@@ -79,6 +97,13 @@ runs:
               body,
             });
           }
+
+    - name: Upload SARIF
+      if: always()
+      uses: github/codeql-action/upload-sarif@v3
+      continue-on-error: true
+      with:
+        sarif_file: permission-diff.sarif
 
     - name: Fail on risky escalation
       if: steps.diff.outputs.code != '0'

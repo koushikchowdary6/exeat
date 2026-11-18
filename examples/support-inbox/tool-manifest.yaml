@@ -1,0 +1,43 @@
+version: 1
+
+tools:
+  - name: tickets.read
+    description: Read one support ticket.
+    risk: low
+    arguments:
+      - name: ticket_id
+        type: string
+        required: true
+
+  - name: files.read
+    description: Read a file in an allowed scope.
+    risk: medium
+    arguments:
+      - name: path
+        type: path
+        required: true
+
+  - name: email.send
+    description: Send one email. The gate checks the recipient.
+    risk: high
+    arguments:
+      - name: to
+        type: recipient
+        required: true
+      - name: subject
+        type: string
+        required: true
+      - name: body
+        type: string
+        required: true
+
+  - name: refund.issue
+    description: Issue a refund from the support balance.
+    risk: high
+    arguments:
+      - name: amount_usd
+        type: spend
+        required: true
+      - name: ticket_id
+        type: string
+        required: true

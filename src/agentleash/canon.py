@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """Stable JSON shapes for fingerprints and the audit log."""
 
 from __future__ import annotations

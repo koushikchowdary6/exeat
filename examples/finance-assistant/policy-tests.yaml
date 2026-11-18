@@ -1,0 +1,66 @@
+# Independent cases. Spend does not carry from one case to the next.
+policy: agent-policy.yaml
+manifest: tool-manifest.yaml
+cases:
+  - name: read an invoice
+    agent: finance-assistant
+    tool: files.read
+    arguments:
+      path: data/finance/invoices/INV-1042.json
+    expect: allow
+    rule: allow
+  - name: small payment is allowed
+    agent: finance-assistant
+    tool: ledger.transfer
+    arguments:
+      amount_usd: 180
+      vendor_id: VEND-OAK
+      memo: paper
+    expect: allow
+  - name: large payment waits
+    agent: finance-assistant
+    tool: ledger.transfer
+    arguments:
+      amount_usd: 900
+      vendor_id: VEND-OAK
+    expect: require_approval
+    rule: approval.required
+  - name: over the per-call ceiling
+    agent: finance-assistant
+    tool: ledger.transfer
+    arguments:
+      amount_usd: 5000
+      vendor_id: VEND-OAK
+    expect: deny
+    rule: spend.per_call
+  - name: secrets path
+    agent: finance-assistant
+    tool: files.read
+    arguments:
+      path: secrets/api-keys.txt
+    expect: deny
+    rule: path.protected
+  - name: outside email
+    agent: finance-assistant
+    tool: email.send
+    arguments:
+      to: auditor@external-audit.test
+      subject: hi
+      body: sent
+    expect: deny
+    rule: recipient.denied
+  - name: undeclared shell
+    agent: finance-assistant
+    tool: shell.exec
+    arguments:
+      command: id
+    expect: deny
+    rule: tool.undeclared
+  - name: intern ceiling
+    agent: finance-intern
+    tool: ledger.transfer
+    arguments:
+      amount_usd: 180
+      vendor_id: VEND-OAK
+    expect: deny
+    rule: spend.per_call

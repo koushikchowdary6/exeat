@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """Tiny upstream MCP server for the proxy test. It records every tools/call."""
 
 from __future__ import annotations

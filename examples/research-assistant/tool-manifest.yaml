@@ -1,0 +1,29 @@
+version: 1
+
+tools:
+  - name: files.read
+    description: Read a file in an allowed scope.
+    risk: medium
+    arguments:
+      - name: path
+        type: path
+        required: true
+
+  - name: notes.write
+    description: Write a note inside the research tree.
+    risk: medium
+    arguments:
+      - name: path
+        type: path
+        required: true
+      - name: body
+        type: string
+        required: true
+
+  - name: http.get
+    description: Fetch an allowed documentation URL. Callers must not use the network in tests.
+    risk: medium
+    arguments:
+      - name: url
+        type: url
+        required: true

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """USD amounts as integer cents."""
 
 from __future__ import annotations

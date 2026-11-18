@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """Human approvals. Granting and consuming are both append-only events."""
 
 from __future__ import annotations
@@ -39,6 +39,32 @@ class ApprovalLog:
             "v": 1,
             "type": "approval",
             "id": f"apr_{secrets.token_hex(6)}",
+            "ts": isoformat(now),
+            "expires": isoformat(now + timedelta(seconds=ttl_seconds)),
+            "agent": agent,
+            "tool": tool,
+            "fingerprint": fingerprint(agent, tool, arguments),
+            "by": by,
+        }
+        append_jsonl(self.path, record)
+        return record
+
+    def deny(
+        self,
+        *,
+        agent: str,
+        tool: str,
+        arguments: dict[str, Any],
+        by: str,
+        ttl_seconds: int = DEFAULT_TTL_SECONDS,
+    ) -> dict[str, Any]:
+        if ttl_seconds <= 0:
+            raise ValueError("ttl_seconds must be positive")
+        now = self.clock.now()
+        record: dict[str, Any] = {
+            "v": 1,
+            "type": "denial",
+            "id": f"den_{secrets.token_hex(6)}",
             "ts": isoformat(now),
             "expires": isoformat(now + timedelta(seconds=ttl_seconds)),
             "agent": agent,

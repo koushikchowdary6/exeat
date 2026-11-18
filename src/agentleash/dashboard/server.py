@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """Local permission board. Binds to loopback and does not phone home."""
 
 from __future__ import annotations
@@ -83,6 +83,17 @@ class Board:
         from agentleash.runtime.approvals import ApprovalLog
 
         record = ApprovalLog(self.approval_path).grant(
+            agent=agent,
+            tool=tool,
+            arguments=arguments,
+            by=by or "board-operator",
+        )
+        return {"id": record["id"], "fingerprint": record["fingerprint"], "expires": record["expires"]}
+
+    def deny(self, agent: str, tool: str, arguments: dict[str, Any], by: str) -> dict[str, Any]:
+        from agentleash.runtime.approvals import ApprovalLog
+
+        record = ApprovalLog(self.approval_path).deny(
             agent=agent,
             tool=tool,
             arguments=arguments,
@@ -176,6 +187,16 @@ def _handler_factory(board: Board) -> type[BaseHTTPRequestHandler]:
                     self._send(
                         200,
                         board.approve(
+                            _need(payload, "agent"),
+                            _need(payload, "tool"),
+                            _args(payload),
+                            str(payload.get("by") or "board-operator"),
+                        ),
+                    )
+                elif path == "/api/deny":
+                    self._send(
+                        200,
+                        board.deny(
                             _need(payload, "agent"),
                             _need(payload, "tool"),
                             _args(payload),

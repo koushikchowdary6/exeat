@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """Text and JSON renderings of a permission diff."""
 
 from __future__ import annotations

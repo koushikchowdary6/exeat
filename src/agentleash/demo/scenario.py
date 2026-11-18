@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """The scripted finance assistant. Legitimate work, then the escalations."""
 
 from __future__ import annotations

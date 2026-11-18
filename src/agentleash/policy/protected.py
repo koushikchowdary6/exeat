@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """Paths the runtime refuses even when a policy allow-list says ``**``.
 
 This is a best-effort denylist for obvious secret locations, not a data-loss

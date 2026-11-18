@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """Decide what an agent may spend, send, and open."""
 
 from agentleash.brand import PRODUCT_SLUG, PRODUCT_TITLE, VERSION

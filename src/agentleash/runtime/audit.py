@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """The decision tape. Append-only; a failed tool adds a release line."""
 
 from __future__ import annotations

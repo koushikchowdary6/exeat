@@ -1,0 +1,24 @@
+name: Bug
+description: A decision, diff, or command did the wrong thing.
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Commands and a synthetic policy only. Do not paste secrets.
+    validations:
+      required: true

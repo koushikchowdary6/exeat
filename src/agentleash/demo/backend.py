@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """In-process finance tools. They never open a socket or send mail."""
 
 from __future__ import annotations

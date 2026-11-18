@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """Spend already committed in the audit log.
 
 An allow is reserved before the tool runs. A later ``release`` line undoes it

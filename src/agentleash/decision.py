@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """The three answers the gate can give."""
 
 from __future__ import annotations
@@ -17,6 +17,15 @@ class Effect(StrEnum):
 
 
 @dataclass(frozen=True)
+class Check:
+    """One step of an explain trace. ``status`` is pass, fail, or hold."""
+
+    status: str
+    rule: str
+    detail: str
+
+
+@dataclass(frozen=True)
 class Decision:
     effect: Effect
     rule: str
@@ -29,6 +38,7 @@ class Decision:
     spend_cents: int | None = None
     approval_id: str | None = None
     arguments: dict[str, Any] = field(default_factory=dict)
+    checks: tuple[Check, ...] = ()
 
     @property
     def allowed(self) -> bool:

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """A small MCP server. Every tools/call is decided by the leash first.
 
 Stdio messages are newline-delimited JSON-RPC. Logs go to stderr so the

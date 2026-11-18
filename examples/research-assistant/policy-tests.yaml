@@ -1,0 +1,45 @@
+policy: agent-policy.yaml
+manifest: tool-manifest.yaml
+cases:
+  - name: read a brief
+    agent: research-assistant
+    tool: files.read
+    arguments:
+      path: data/research/brief.md
+    expect: allow
+  - name: write a summary in the tree
+    agent: research-assistant
+    tool: notes.write
+    arguments:
+      path: data/research/summary.md
+      body: Synthetic summary.
+    expect: allow
+  - name: fetch the docs site
+    agent: research-assistant
+    tool: http.get
+    arguments:
+      url: https://docs.example/guides/start
+    expect: allow
+  - name: fetch an outside site
+    agent: research-assistant
+    tool: http.get
+    arguments:
+      url: https://evil.test/collect
+    expect: deny
+    rule: url.out_of_scope
+  - name: secrets stay closed
+    agent: research-assistant
+    tool: files.read
+    arguments:
+      path: secrets/tokens.txt
+    expect: deny
+    rule: path.protected
+  - name: mail is not granted
+    agent: research-assistant
+    tool: email.send
+    arguments:
+      to: editor@field-notes.example
+      subject: draft
+      body: here
+    expect: deny
+    rule: tool.undeclared

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """Offline finance-assistant scenario."""
 
 from agentleash.demo.run import run_demo

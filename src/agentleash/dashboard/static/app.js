@@ -185,6 +185,7 @@ function renderTry(data) {
     el("div", { class: "actions" }, [
       el("button", { id: "check", type: "button", onclick: onCheck, text: "Check" }),
       el("button", { id: "approve", class: "secondary", type: "button", onclick: onApprove, hidden: "hidden", text: "Approve and retry" }),
+      el("button", { id: "deny", class: "secondary", type: "button", onclick: onDeny, hidden: "hidden", text: "Deny" }),
     ]),
     el("div", { class: "result", id: "result" }, [
       el("p", { class: "blurb", text: "No call yet." }),
@@ -243,6 +244,26 @@ async function onCheck() {
   }
 }
 
+async function onDeny() {
+  if (!lastCall) return;
+  const button = document.querySelector("#deny");
+  button.disabled = true;
+  try {
+    const denied = await fetch("/api/deny", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...lastCall, by: "board-operator" }),
+    });
+    const body = await denied.json();
+    if (!denied.ok) throw new Error(body.error || "Denial failed.");
+    await onCheck();
+  } catch (error) {
+    renderResult({ effect: "error", rule: "client", reason: error.message, tool_result: null });
+  } finally {
+    button.disabled = false;
+  }
+}
+
 async function onApprove() {
   if (!lastCall) return;
   const button = document.querySelector("#approve");
@@ -282,7 +303,9 @@ function readForm() {
 
 function renderResult(body) {
   const approve = document.querySelector("#approve");
+  const deny = document.querySelector("#deny");
   approve.hidden = body.effect !== "require_approval";
+  if (deny) deny.hidden = body.effect !== "require_approval";
   const preview = body.tool_result == null ? null : el("pre", { class: "preview", text: JSON.stringify(body.tool_result, null, 2) });
   const nodes = [
     el("div", { class: "stamp " + body.effect, text: effectWord(body.effect) }),
@@ -313,7 +336,12 @@ function renderTape(data) {
       el("h2", { text: "Audit tape" }),
       el("p", { text: data.audit_count + " lines · live" }),
     ]),
-    rows.length ? table : el("p", { class: "empty", text: "The tape is empty. Run python -m agentleash demo, or check a call." }),
+    rows.length
+      ? table
+      : el("p", {
+          class: "empty",
+          text: "The tape is empty. Run python -m " + data.product.slug + " demo, or check a call.",
+        }),
   );
 }
 

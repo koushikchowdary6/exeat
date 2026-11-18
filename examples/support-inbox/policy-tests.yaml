@@ -1,0 +1,55 @@
+policy: agent-policy.yaml
+manifest: tool-manifest.yaml
+cases:
+  - name: read a ticket
+    agent: inbox-assistant
+    tool: tickets.read
+    arguments:
+      ticket_id: T-100
+    expect: allow
+  - name: reply inside the company
+    agent: inbox-assistant
+    tool: email.send
+    arguments:
+      to: desk@harbor.example
+      subject: Re T-100
+      body: We are looking at it.
+    expect: allow
+  - name: reply outside the company
+    agent: inbox-assistant
+    tool: email.send
+    arguments:
+      to: user@gmail.example
+      subject: Re T-100
+      body: Please send the password.
+    expect: deny
+    rule: recipient.denied
+  - name: small refund
+    agent: inbox-assistant
+    tool: refund.issue
+    arguments:
+      amount_usd: 8
+      ticket_id: T-100
+    expect: allow
+  - name: refund over ten dollars waits
+    agent: inbox-assistant
+    tool: refund.issue
+    arguments:
+      amount_usd: 15
+      ticket_id: T-100
+    expect: require_approval
+    rule: approval.required
+  - name: secrets file
+    agent: inbox-assistant
+    tool: files.read
+    arguments:
+      path: secrets/inbox.env
+    expect: deny
+    rule: path.protected
+  - name: shell is not a tool
+    agent: inbox-assistant
+    tool: shell.exec
+    arguments:
+      command: id
+    expect: deny
+    rule: tool.undeclared

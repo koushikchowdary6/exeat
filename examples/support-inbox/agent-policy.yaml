@@ -1,0 +1,49 @@
+# Harbor Support is fictional. The inbox agent can read tickets and reply
+# inside harbor.example. Refunds above $10 wait for a person.
+version: 1
+
+org:
+  name: Harbor Support
+  unit: Inbox
+
+roles:
+  - name: reader
+    description: Read tickets and files in the support tree.
+    tools:
+      - tickets.read
+      - files.read
+    scopes:
+      files:
+        allow:
+          - data/support/**
+      tables:
+        allow:
+          - support.tickets
+
+  - name: responder
+    description: Reader, plus internal replies and small refunds.
+    inherits: reader
+    tools:
+      - email.send
+      - refund.issue
+    spend:
+      currency: USD
+      per_call: 20
+      per_day: 100
+      total: 500
+    recipients:
+      domains:
+        - harbor.example
+    approvals:
+      - name: refund-review
+        tools:
+          - refund.issue
+        when:
+          arg: amount_usd
+          gt: 10
+        reason: Refunds above $10 need a person.
+
+agents:
+  - name: inbox-assistant
+    role: responder
+    description: Frontline agent for the support inbox.

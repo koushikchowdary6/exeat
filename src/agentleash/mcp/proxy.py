@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """Forward allowed calls to an upstream MCP server on stdio.
 
 The upstream is a subprocess. Its stdout is the protocol stream and is never

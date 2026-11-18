@@ -8,6 +8,8 @@ diffed in CI, so a reviewer sees what an agent newly gains before it ships.
 
 ![The local permission board: roles, two agents with spend meters, and the audit tape](docs/images/board.png)
 
+<video src="docs/images/demo.mp4" controls></video>
+
 Northwind Books is fictional. The demo does not spend money, send mail, or
 use the network.
 
@@ -267,6 +269,25 @@ See [SECURITY.md](SECURITY.md). The short version: the policy is trusted more
 than the agent, the gate sees tool calls rather than prompts, and the local
 board has no authentication because it binds to loopback.
 
+## Operate it
+
+```bash
+python3 -m agentleash validate --example
+python3 -m agentleash test examples/finance-assistant/policy-tests.yaml
+python3 -m agentleash explain --agent finance-assistant --tool files.read --args '{"path":"secrets/api-keys.txt"}'
+python3 -m agentleash keygen --out .agentleash/keys
+python3 -m agentleash sign --policy examples/finance-assistant/agent-policy.yaml --key .agentleash/keys/policy.key
+python3 -m agentleash verify --policy examples/finance-assistant/agent-policy.yaml --public .agentleash/keys/policy.pub
+```
+
+Spend reservations live in SQLite (`ledger.sqlite` next to the audit log) and are atomic across processes on one machine. Set a `postgres://` URL via `Ledger.open` when more than one machine must share the ledger. Postgres needs the optional `postgres` extra. Nothing is uploaded anywhere.
+
+`agentleash deny` records an operator rejection of one exact call. The board has the same Deny button next to Approve. Set `--webhook` on the board, or `webhook_url` on `Leash.open`, to POST a hold to a local endpoint. If the URL is unset, no request is made.
+
+`agentleash mcp-http` speaks MCP over HTTP and server-sent events. Adapters for the OpenAI Agents SDK, LangChain, and CrewAI are in `agentleash.adapters` and do not import those packages unless they are installed.
+
+The product title and command slug live in [`src/agentleash/brand.py`](src/agentleash/brand.py). The import package uses the same slug. The name is not final. This project is not published to PyPI (`Private :: Do Not Upload`).
+
 ## License
 
-Apache License 2.0. See [LICENSE](LICENSE).
+MIT License. Copyright (c) 2026 Sai Pranay Kowshik Chowdary Sakhamuri. See [LICENSE](LICENSE).

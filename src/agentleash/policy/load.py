@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """Parse ``agent-policy.yaml`` and the tool manifest."""
 
 from __future__ import annotations

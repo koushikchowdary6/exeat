@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 from agentleash.policy.globmatch import covers, glob_match
 from agentleash.policy.protected import PROTECTED_FILE_GLOBS
 

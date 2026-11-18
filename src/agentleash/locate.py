@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """Find the finance example inside a checkout."""
 
 from __future__ import annotations

@@ -1,12 +1,9 @@
-# SPDX-License-Identifier: Apache-2.0
-"""Working name for this project.
+# SPDX-License-Identifier: MIT
+"""Product name. The final name is not decided.
 
-The name has not been checked for trademark or package conflicts, and this
-project is not published to PyPI. User-facing strings read these constants.
-
-To rename the project, change this file first, then:
-- the ``[project].name`` field and the console script in ``pyproject.toml``
-- the ``src/agentleash`` package directory (and its imports)
+User-facing title, slug, state directory, and environment prefix live here.
+The import package and the ``[project].name`` field in ``pyproject.toml`` use
+the same slug. This project is not published to PyPI.
 """
 
 from __future__ import annotations
@@ -21,6 +18,7 @@ MANIFEST_FILENAME = "tool-manifest.yaml"
 STATE_DIRNAME = ".agentleash"
 AUDIT_FILENAME = "audit.jsonl"
 APPROVAL_FILENAME = "approvals.jsonl"
+LEDGER_FILENAME = "ledger.sqlite"
 ENV_PREFIX = "AGENTLEASH"
 
 # Reserved argument names. The runtime classifies these even when a manifest

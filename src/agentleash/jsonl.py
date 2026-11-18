@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """Append-only JSONL. Records are added; this module never truncates or rewrites."""
 
 from __future__ import annotations

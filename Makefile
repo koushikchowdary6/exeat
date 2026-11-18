@@ -7,7 +7,7 @@ demo:
 	python3 -m agentleash demo
 
 test:
-	python3 -m pytest --cov=agentleash --cov-fail-under=85
+	python3 -m pytest --cov=agentleash --cov-fail-under=90
 
 lint:
 	python3 -m ruff check src tests

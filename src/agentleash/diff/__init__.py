@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """Compare agent permissions between two revisions."""
 
 from agentleash.diff.compare import Finding, diff_documents, should_fail

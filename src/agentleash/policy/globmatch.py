@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """Segment-aware globs for file scopes and for the permission diff.
 
 ``*`` matches inside one path segment. ``**`` matches zero or more whole

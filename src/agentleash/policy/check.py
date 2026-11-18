@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """Argument checks shared by the evaluator. Each one returns a reason or None."""
 
 from __future__ import annotations

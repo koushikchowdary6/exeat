@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """Run the finance scenario through the same gate the decorator and MCP use."""
 
 from __future__ import annotations

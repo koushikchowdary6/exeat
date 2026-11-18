@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """Policy loading and the deny-by-default evaluator."""
 
 from agentleash.policy.effective import effective_for_agent, effective_for_role

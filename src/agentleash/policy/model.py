@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 """In-memory policy and tool manifest."""
 
 from __future__ import annotations
