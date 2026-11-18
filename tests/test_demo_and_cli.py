@@ -2,10 +2,10 @@
 import json
 from pathlib import Path
 
-from agentleash.cli import main
-from agentleash.decision import Effect
-from agentleash.demo.run import run_demo
-from agentleash.demo.world import INVOICE
+from exeat.cli import main
+from exeat.decision import Effect
+from exeat.demo.run import run_demo
+from exeat.demo.world import INVOICE
 
 
 def test_demo_script_matches_every_expected_decision(tmp_path: Path) -> None:

@@ -4,10 +4,10 @@ from pathlib import Path
 
 import pytest
 
-from agentleash.decision import ApprovalRequired, Denied, Effect
-from agentleash.locate import finance_example_dir
-from agentleash.runtime.clock import FrozenClock
-from agentleash.runtime.leash import Leash
+from exeat.decision import ApprovalRequired, Denied, Effect
+from exeat.locate import finance_example_dir
+from exeat.runtime.clock import FrozenClock
+from exeat.runtime.leash import Leash
 
 ROOT = finance_example_dir()
 DAY = datetime(2026, 4, 2, 15, 0, tzinfo=UTC)

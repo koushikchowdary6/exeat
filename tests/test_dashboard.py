@@ -4,9 +4,9 @@ import threading
 from pathlib import Path
 from urllib.request import Request, urlopen
 
-from agentleash.dashboard.server import Board, make_server
-from agentleash.demo.run import run_demo
-from agentleash.locate import finance_example_dir
+from exeat.dashboard.server import Board, make_server
+from exeat.demo.run import run_demo
+from exeat.locate import finance_example_dir
 
 
 def test_board_serves_the_org_chart_and_a_denied_call(tmp_path: Path) -> None:
@@ -28,7 +28,7 @@ def test_board_serves_the_org_chart_and_a_denied_call(tmp_path: Path) -> None:
     try:
         with urlopen(f"http://{host}:{port}/") as response:
             html = response.read().decode("utf-8")
-        assert "Agentleash" in html
+        assert "Exeat" in html
         assert "/static/app.js" in html
         with urlopen(f"http://{host}:{port}/static/styles.css") as response:
             assert "--paper" in response.read().decode("utf-8")

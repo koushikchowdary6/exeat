@@ -1,6 +1,6 @@
 # Contributing
 
-Agentleash is a personal project under the MIT License. Issues and
+Exeat is a personal project under the MIT License. Issues and
 pull requests are welcome. There is no company, no customers, and no private
 tracker behind this repository.
 
@@ -13,8 +13,8 @@ python3 -m pip install -e ".[dev]"
 python3 -m ruff check src tests
 python3 -m ruff format --check src tests
 python3 -m mypy src
-python3 -m pytest --cov=agentleash --cov-fail-under=90
-python3 -m agentleash demo
+python3 -m pytest --cov=exeat --cov-fail-under=90
+python3 -m exeat demo
 ```
 
 The demo and the tests are offline. Do not add a dependency that phones home,
@@ -30,19 +30,17 @@ and do not add a required API key.
 ## Policy and manifest changes
 
 The finance example is the contract the demo and a lot of the tests lock.
-If you change a ceiling or a tool name, update `src/agentleash/demo/scenario.py`
+If you change a ceiling or a tool name, update `src/exeat/demo/scenario.py`
 in the same commit. The demo exits non-zero when a step does not match.
 
-Reserved argument names live in `src/agentleash/brand.py`. Adding one is a
+Reserved argument names live in `src/exeat/brand.py`. Adding one is a
 behavior change: calls that used that name as a plain string start getting
 checked. Mention it in the pull request.
 
-## The name
+## Publishing
 
-The working name has not been checked for trademark or package conflicts, and
-nothing here is published to PyPI. User-facing strings come from
-`src/agentleash/brand.py`. Renaming also means the `[project].name` field in
-`pyproject.toml` and the `src/agentleash` directory.
+Nothing here is published to PyPI. The `Private :: Do Not Upload` classifier
+is intentional. User-facing strings come from `src/exeat/brand.py`.
 
 ## Commit style
 

@@ -1,5 +1,5 @@
 # A deliberately bad revision of agent-policy.yaml.
-# `agentleash diff` should exit non-zero on this file.
+# `exeat diff` should exit non-zero on this file.
 
 version: 1
 

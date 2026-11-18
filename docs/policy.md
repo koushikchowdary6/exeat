@@ -79,7 +79,7 @@ a ceiling. The daily window is the UTC date.
 - Paths are relative. `..` is normalized before the check, and a path that
   escapes the root is denied. Absolute paths are denied.
 - Protected paths are denied even when an allow pattern is `**`. The list is
-  in `agentleash/policy/protected.py` and cannot be turned off.
+  in `exeat/policy/protected.py` and cannot be turned off.
 - URL patterns are `https://host/**` style. Userinfo (`https://user@host`)
   is denied. The builtin HTTP tool does not use the network.
 - A table name is matched against the allow list. A `/` in a table name is
@@ -91,7 +91,7 @@ The manifest types `spend`, `path`, `url`, `table`, and `recipient` are
 enforced. `string`, `number`, and `boolean` are not, except for reserved
 names. Those names keep their sensitive type even if a manifest downgrades
 them. The diff still flags the downgrade, because the manifest stopped
-telling the truth. The names are in `agentleash/brand.py`.
+telling the truth. The names are in `exeat/brand.py`.
 
 Extra arguments that are not reserved are ignored. A smuggled `bcc` is not
 ignored, because `bcc` is reserved.

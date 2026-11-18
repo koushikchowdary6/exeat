@@ -9,6 +9,6 @@ htmlcov/
 site/
 dist/
 *.egg-info/
-.agentleash/
-examples/finance-assistant/.agentleash/
+.exeat/
+examples/finance-assistant/.exeat/
 tmp/

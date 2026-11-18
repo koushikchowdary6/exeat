@@ -6,12 +6,12 @@ from pathlib import Path
 
 import yaml
 
-from agentleash.cli import main
-from agentleash.decision import Decision, Effect
-from agentleash.diff.compare import diff_documents
-from agentleash.locate import finance_example_dir
-from agentleash.policy.evaluate import evaluate
-from agentleash.policy.load import load_manifest, load_policy, parse_manifest, parse_policy
+from exeat.cli import main
+from exeat.decision import Decision, Effect
+from exeat.diff.compare import diff_documents
+from exeat.locate import finance_example_dir
+from exeat.policy.evaluate import evaluate
+from exeat.policy.load import load_manifest, load_policy, parse_manifest, parse_policy
 
 NOW = datetime(2026, 6, 2, 8, 0, tzinfo=UTC)
 ROOT = finance_example_dir()

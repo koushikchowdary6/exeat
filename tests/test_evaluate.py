@@ -5,10 +5,10 @@ from pathlib import Path
 import pytest
 import yaml
 
-from agentleash.decision import Effect
-from agentleash.locate import finance_example_dir
-from agentleash.policy.evaluate import evaluate
-from agentleash.policy.load import load_manifest, load_policy, parse_manifest, parse_policy
+from exeat.decision import Effect
+from exeat.locate import finance_example_dir
+from exeat.policy.evaluate import evaluate
+from exeat.policy.load import load_manifest, load_policy, parse_manifest, parse_policy
 
 NOW = datetime(2026, 4, 2, 15, 0, tzinfo=UTC)
 

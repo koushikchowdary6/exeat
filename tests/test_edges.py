@@ -11,17 +11,17 @@ from urllib.request import Request, urlopen
 import pytest
 import yaml
 
-from agentleash.canon import canon, fingerprint, truncate
-from agentleash.cli import main
-from agentleash.dashboard.server import Board, make_server
-from agentleash.errors import AgentleashError, PolicyError
-from agentleash.jsonl import read_jsonl
-from agentleash.locate import finance_example_dir
-from agentleash.mcp.proxy import ProxyBackend
-from agentleash.money import format_usd, parse_cents
-from agentleash.policy.evaluate import evaluate
-from agentleash.policy.load import load_policy, parse_manifest, parse_policy
-from agentleash.runtime.clock import FrozenClock
+from exeat.canon import canon, fingerprint, truncate
+from exeat.cli import main
+from exeat.dashboard.server import Board, make_server
+from exeat.errors import ExeatError, PolicyError
+from exeat.jsonl import read_jsonl
+from exeat.locate import finance_example_dir
+from exeat.mcp.proxy import ProxyBackend
+from exeat.money import format_usd, parse_cents
+from exeat.policy.evaluate import evaluate
+from exeat.policy.load import load_policy, parse_manifest, parse_policy
+from exeat.runtime.clock import FrozenClock
 
 NOW = datetime(2026, 4, 2, 15, 0, tzinfo=UTC)
 
@@ -238,7 +238,7 @@ tools:
 def test_corrupt_audit_line(tmp_path: Path) -> None:
     path = tmp_path / "audit.jsonl"
     path.write_text("{}\nnot-json\n", encoding="utf-8")
-    with pytest.raises(AgentleashError, match="not valid JSON"):
+    with pytest.raises(ExeatError, match="not valid JSON"):
         read_jsonl(path)
 
 
@@ -327,7 +327,7 @@ def _raw(host: str, port: int, path: str, body: bytes) -> dict[str, object]:
 
 
 def test_spend_ignores_garbage_history() -> None:
-    from agentleash.spend import committed_spend
+    from exeat.spend import committed_spend
 
     today, total = committed_spend(
         [

@@ -6,10 +6,10 @@ import subprocess
 import sys
 from pathlib import Path
 
-from agentleash.demo.backend import FinanceBackend
-from agentleash.locate import finance_example_dir
-from agentleash.mcp.server import Session, handle_message
-from agentleash.runtime.leash import Leash
+from exeat.demo.backend import FinanceBackend
+from exeat.locate import finance_example_dir
+from exeat.mcp.server import Session, handle_message
+from exeat.runtime.leash import Leash
 
 
 def test_handle_message_allow_and_deny(tmp_path: Path) -> None:
@@ -27,7 +27,7 @@ def test_handle_message_allow_and_deny(tmp_path: Path) -> None:
         session,
     )
     assert init is not None
-    assert init["result"]["serverInfo"]["name"] == "agentleash"
+    assert init["result"]["serverInfo"]["name"] == "exeat"
     assert handle_message({"jsonrpc": "2.0", "method": "notifications/initialized"}, session) is None
     listed = handle_message({"jsonrpc": "2.0", "id": 2, "method": "tools/list"}, session)
     assert listed is not None
@@ -65,7 +65,7 @@ def test_handle_message_allow_and_deny(tmp_path: Path) -> None:
 def test_serve_writes_parse_errors_and_unknown_methods(tmp_path: Path) -> None:
     from io import StringIO
 
-    from agentleash.mcp.server import serve
+    from exeat.mcp.server import serve
 
     root = finance_example_dir()
     leash = Leash.open(
@@ -101,7 +101,7 @@ def test_serve_writes_parse_errors_and_unknown_methods(tmp_path: Path) -> None:
 
 def test_stdio_roundtrip() -> None:
     proc = subprocess.Popen(
-        [sys.executable, "-m", "agentleash", "mcp", "--example", "--agent", "finance-assistant"],
+        [sys.executable, "-m", "exeat", "mcp", "--example", "--agent", "finance-assistant"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -168,7 +168,7 @@ tools:
         [
             sys.executable,
             "-m",
-            "agentleash",
+            "exeat",
             "mcp",
             "--policy",
             str(policy),

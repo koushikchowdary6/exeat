@@ -15,14 +15,14 @@ from pathlib import Path
 import pytest
 import yaml
 
-from agentleash.cli import main
-from agentleash.dashboard.server import make_server
-from agentleash.errors import AgentleashError, PolicyError
-from agentleash.ledger import Ledger
-from agentleash.locate import finance_example_dir
-from agentleash.mcp.http import HttpGateway, make_http_server
-from agentleash.policy.evaluate import evaluate
-from agentleash.policy.load import parse_manifest, parse_policy
+from exeat.cli import main
+from exeat.dashboard.server import make_server
+from exeat.errors import ExeatError, PolicyError
+from exeat.ledger import Ledger
+from exeat.locate import finance_example_dir
+from exeat.mcp.http import HttpGateway, make_http_server
+from exeat.policy.evaluate import evaluate
+from exeat.policy.load import parse_manifest, parse_policy
 
 NOW = datetime(2026, 6, 2, 8, 0, tzinfo=UTC)
 ROOT = finance_example_dir()
@@ -147,17 +147,17 @@ def test_postgres_dialect_reserves_and_rolls_back() -> None:
         )
     assert "ROLLBACK" in store.statements
     ledger.close()
-    with pytest.raises(AgentleashError, match="unknown ledger"):
+    with pytest.raises(ExeatError, match="unknown ledger"):
         Ledger(_Connection(_Store()), "mysql")
 
 
 def test_cli_servers_and_error_exits(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    import agentleash.dashboard.server as board
-    import agentleash.mcp.http as http
+    import exeat.dashboard.server as board
+    import exeat.mcp.http as http
 
     monkeypatch.setattr(board.ThreadingHTTPServer, "serve_forever", lambda self: None)
     monkeypatch.setattr(http.ThreadingHTTPServer, "serve_forever", lambda self: None)
-    monkeypatch.setattr("agentleash.cli.serve_stdio", lambda session: None)
+    monkeypatch.setattr("exeat.cli.serve_stdio", lambda session: None)
 
     class DummyProxy:
         def __init__(self, command: list[str]) -> None:
@@ -166,7 +166,7 @@ def test_cli_servers_and_error_exits(monkeypatch: pytest.MonkeyPatch, tmp_path: 
         def close(self) -> None:
             return None
 
-    monkeypatch.setattr("agentleash.cli.ProxyBackend", DummyProxy)
+    monkeypatch.setattr("exeat.cli.ProxyBackend", DummyProxy)
     assert main(["dashboard", "--host", "127.0.0.1", "--port", "0"]) == 0
     assert main(["mcp-http", "--host", "127.0.0.1", "--port", "0"]) == 0
     assert main(["mcp", "--", "python", "-c", "pass"]) == 0
@@ -174,7 +174,7 @@ def test_cli_servers_and_error_exits(monkeypatch: pytest.MonkeyPatch, tmp_path: 
     def _interrupt(*args: object, **kwargs: object) -> str:
         raise KeyboardInterrupt
 
-    monkeypatch.setattr("agentleash.cli.render_chart", _interrupt)
+    monkeypatch.setattr("exeat.cli.render_chart", _interrupt)
     assert main(["chart"]) == 130
     audit = tmp_path / "audit.jsonl"
     assert (
@@ -246,11 +246,11 @@ def test_http_and_dashboard_reject_bad_requests() -> None:
         httpd.server_close()
 
     board = make_server(
-        __import__("agentleash.dashboard.server", fromlist=["Board"]).Board(
+        __import__("exeat.dashboard.server", fromlist=["Board"]).Board(
             policy_path=ROOT / "agent-policy.yaml",
             manifest_path=ROOT / "tool-manifest.yaml",
-            audit_path=ROOT / ".agentleash" / "audit.jsonl",
-            approval_path=ROOT / ".agentleash" / "approvals.jsonl",
+            audit_path=ROOT / ".exeat" / "audit.jsonl",
+            approval_path=ROOT / ".exeat" / "approvals.jsonl",
             sandbox=ROOT,
         )
     )
@@ -339,9 +339,9 @@ def test_sqlite_open_and_idle_rollback(tmp_path: Path) -> None:
     ledger = Ledger.open(f"sqlite:///{path}")
     ledger._rollback()
     ledger.close()
-    with pytest.raises(AgentleashError, match="psycopg"):
-        Ledger.open("postgres://localhost/agentleash")
-    with pytest.raises(AgentleashError, match="sqlite:"):
+    with pytest.raises(ExeatError, match="psycopg"):
+        Ledger.open("postgres://localhost/exeat")
+    with pytest.raises(ExeatError, match="sqlite:"):
         Ledger.open("memory://ledger")
 
 

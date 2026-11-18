@@ -9,22 +9,22 @@ from urllib.request import Request, urlopen
 import pytest
 import yaml
 
-from agentleash.adapters.crewai_tools import as_crew_tool
-from agentleash.adapters.langchain_tools import as_tool
-from agentleash.adapters.openai_agents import function_tool
-from agentleash.cli import main
-from agentleash.decision import ApprovalRequired, Check, Decision, Denied, Effect
-from agentleash.demo.backend import FinanceBackend
-from agentleash.errors import AgentleashError
-from agentleash.explain import render_explanation
-from agentleash.ledger import Ledger
-from agentleash.locate import finance_example_dir
-from agentleash.mcp.http import HttpGateway, make_http_server
-from agentleash.mcp.server import Session
-from agentleash.policy.cases import render_case_report, run_cases
-from agentleash.runtime.leash import Leash
-from agentleash.signing import sign_file, verify_file
-from agentleash.webhook import notify_hold
+from exeat.adapters.crewai_tools import as_crew_tool
+from exeat.adapters.langchain_tools import as_tool
+from exeat.adapters.openai_agents import function_tool
+from exeat.cli import main
+from exeat.decision import ApprovalRequired, Check, Decision, Denied, Effect
+from exeat.demo.backend import FinanceBackend
+from exeat.errors import ExeatError
+from exeat.explain import render_explanation
+from exeat.ledger import Ledger
+from exeat.locate import finance_example_dir
+from exeat.mcp.http import HttpGateway, make_http_server
+from exeat.mcp.server import Session
+from exeat.policy.cases import render_case_report, run_cases
+from exeat.runtime.leash import Leash
+from exeat.signing import sign_file, verify_file
+from exeat.webhook import notify_hold
 
 ROOT = finance_example_dir()
 NOW = datetime(2026, 6, 1, 12, 0, tzinfo=UTC)
@@ -43,15 +43,15 @@ def _leash(tmp_path: Path) -> Leash:
 
 def test_case_file_errors_and_mismatches(tmp_path: Path) -> None:
     missing = tmp_path / "missing.yaml"
-    with pytest.raises(AgentleashError, match="could not read"):
+    with pytest.raises(ExeatError, match="could not read"):
         run_cases(missing)
     broken = tmp_path / "broken.yaml"
     broken.write_text(":\n - [", encoding="utf-8")
-    with pytest.raises(AgentleashError, match="parse"):
+    with pytest.raises(ExeatError, match="parse"):
         run_cases(broken)
     not_map = tmp_path / "list.yaml"
     not_map.write_text("- 1\n", encoding="utf-8")
-    with pytest.raises(AgentleashError, match="mapping"):
+    with pytest.raises(ExeatError, match="mapping"):
         run_cases(not_map)
     (tmp_path / "agent-policy.yaml").write_text(
         (ROOT / "agent-policy.yaml").read_text(encoding="utf-8"),
@@ -63,11 +63,11 @@ def test_case_file_errors_and_mismatches(tmp_path: Path) -> None:
     )
     empty = tmp_path / "empty-cases.yaml"
     empty.write_text("cases: []\n", encoding="utf-8")
-    with pytest.raises(AgentleashError, match="non-empty"):
+    with pytest.raises(ExeatError, match="non-empty"):
         run_cases(empty)
     bad_policy = tmp_path / "bad.yaml"
     bad_policy.write_text("policy: nope.yaml\ncases:\n  - name: x\n", encoding="utf-8")
-    with pytest.raises(AgentleashError):
+    with pytest.raises(ExeatError):
         run_cases(bad_policy)
     cases = tmp_path / "cases.yaml"
     cases.write_text(
@@ -110,19 +110,19 @@ cases:
 def test_signing_rejects_bad_inputs(tmp_path: Path) -> None:
     policy = tmp_path / "agent-policy.yaml"
     policy.write_text("version: 1\n", encoding="utf-8")
-    with pytest.raises(AgentleashError, match="no signature"):
+    with pytest.raises(ExeatError, match="no signature"):
         verify_file(policy, tmp_path / "missing.pub")
     (policy.name + ".sig" and policy.with_name(policy.name + ".sig")).write_text("not base64!\n", encoding="utf-8")
     (tmp_path / "policy.pub").write_text("not a key\n", encoding="utf-8")
-    with pytest.raises(AgentleashError, match="base64"):
+    with pytest.raises(ExeatError, match="base64"):
         verify_file(policy, tmp_path / "policy.pub")
     policy.with_name(policy.name + ".sig").write_text("YQ==\n", encoding="utf-8")
-    with pytest.raises(AgentleashError, match="public key"):
+    with pytest.raises(ExeatError, match="public key"):
         verify_file(policy, tmp_path / "policy.pub")
     (tmp_path / "policy.key").write_text("nope\n", encoding="utf-8")
-    with pytest.raises(AgentleashError, match="private key"):
+    with pytest.raises(ExeatError, match="private key"):
         sign_file(policy, tmp_path / "policy.key")
-    with pytest.raises(AgentleashError, match="could not read"):
+    with pytest.raises(ExeatError, match="could not read"):
         sign_file(tmp_path / "absent.yaml", tmp_path / "policy.key")
 
 
@@ -172,9 +172,9 @@ def test_ledger_edges(tmp_path: Path) -> None:
     opened.release(ok.reservation_id)
     assert opened.totals("ada", NOW) == (0, 0)
     opened.close()
-    with pytest.raises(AgentleashError, match="sqlite: or postgres"):
+    with pytest.raises(ExeatError, match="sqlite: or postgres"):
         Ledger.open("memory://nope")
-    with pytest.raises(AgentleashError, match="psycopg"):
+    with pytest.raises(ExeatError, match="psycopg"):
         Ledger.postgres("postgresql://localhost/none")
 
 
@@ -279,7 +279,7 @@ def test_dashboard_deny_endpoint(tmp_path: Path) -> None:
     import threading
     from urllib.request import Request as UrlRequest
 
-    from agentleash.dashboard.server import Board, make_server
+    from exeat.dashboard.server import Board, make_server
 
     board = Board(
         policy_path=ROOT / "agent-policy.yaml",

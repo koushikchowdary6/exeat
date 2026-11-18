@@ -1,6 +1,6 @@
 # Threat model
 
-Agentleash assumes the policy and the manifest are written by someone you trust more than the agent. An agent that can edit its own policy can grant itself anything. Review those files with the permission diff, and keep them out of the agent's writable paths.
+Exeat assumes the policy and the manifest are written by someone you trust more than the agent. An agent that can edit its own policy can grant itself anything. Review those files with the permission diff, and keep them out of the agent's writable paths.
 
 The gate sees structured tool arguments. It does not read the prompt. A poisoned document can only cause harm by making the model emit a tool call, and that call is what is allowed, denied, or held.
 
@@ -13,7 +13,7 @@ The gate sees structured tool arguments. It does not read the prompt. A poisoned
 
 ## Local board
 
-`agentleash dashboard` binds to `127.0.0.1`. It has no authentication. Do not expose it. The finance tools behind the board do not open sockets or send mail.
+`exeat dashboard` binds to `127.0.0.1`. It has no authentication. Do not expose it. The finance tools behind the board do not open sockets or send mail.
 
 ## Ledger
 

@@ -7,7 +7,7 @@ on:
       - "agent-policy.yaml"
       - "tool-manifest.yaml"
       - ".github/workflows/permission-diff.yml"
-      - ".github/actions/agentleash-diff/**"
+      - ".github/actions/exeat-diff/**"
 
 permissions:
   contents: read
@@ -24,10 +24,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install Agentleash
+      - name: Install Exeat
         run: python -m pip install -e .
       - name: Compare the finance policy
-        uses: ./.github/actions/agentleash-diff
+        uses: ./.github/actions/exeat-diff
         with:
           base: ${{ github.event.pull_request.base.sha }}
           head: ${{ github.event.pull_request.head.sha }}

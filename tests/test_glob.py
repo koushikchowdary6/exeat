@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
-from agentleash.policy.globmatch import covers, glob_match
-from agentleash.policy.protected import PROTECTED_FILE_GLOBS
+from exeat.policy.globmatch import covers, glob_match
+from exeat.policy.protected import PROTECTED_FILE_GLOBS
 
 
 def test_glob_segments() -> None:

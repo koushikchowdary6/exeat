@@ -1,9 +1,9 @@
 repos:
   - repo: local
     hooks:
-      - id: agentleash-diff
-        name: agentleash permission diff
-        entry: python -m agentleash hook
+      - id: exeat-diff
+        name: exeat permission diff
+        entry: python -m exeat hook
         language: system
         pass_filenames: false
         files: '(agent-policy|tool-manifest)\.yaml$'

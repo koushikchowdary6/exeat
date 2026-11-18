@@ -5,9 +5,9 @@ from pathlib import Path
 
 import yaml
 
-from agentleash.diff.compare import diff_documents, should_fail
-from agentleash.locate import finance_example_dir
-from agentleash.policy.load import load_manifest, load_policy, parse_manifest, parse_policy
+from exeat.diff.compare import diff_documents, should_fail
+from exeat.locate import finance_example_dir
+from exeat.policy.load import load_manifest, load_policy, parse_manifest, parse_policy
 
 
 def test_escalation_fixture_fails_and_names_the_gains() -> None:
@@ -89,7 +89,7 @@ def test_git_refs(tmp_path: Path) -> None:
     head = subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=repo, check=True, capture_output=True, text=True
     ).stdout.strip()
-    from agentleash.cli import main
+    from exeat.cli import main
 
     code = main(
         [

@@ -8,26 +8,26 @@ from urllib.request import Request, urlopen
 
 import pytest
 
-from agentleash.adapters.crewai_tools import as_crew_tool
-from agentleash.adapters.langchain_tools import as_tool
-from agentleash.adapters.openai_agents import function_tool
-from agentleash.cli import main
-from agentleash.decision import Denied, Effect
-from agentleash.demo.backend import FinanceBackend
-from agentleash.diff.compare import Finding
-from agentleash.diff.markdown import render_markdown
-from agentleash.diff.sarif import render_sarif
-from agentleash.errors import AgentleashError
-from agentleash.explain import render_explanation
-from agentleash.ledger import Ledger
-from agentleash.locate import finance_example_dir
-from agentleash.mcp.http import HttpGateway, make_http_server
-from agentleash.mcp.server import Session
-from agentleash.policy.cases import run_cases
-from agentleash.policy.schema import POLICY_SCHEMA
-from agentleash.runtime.leash import Leash
-from agentleash.signing import generate_keypair, sign_file, verify_file
-from agentleash.webhook import notify_hold
+from exeat.adapters.crewai_tools import as_crew_tool
+from exeat.adapters.langchain_tools import as_tool
+from exeat.adapters.openai_agents import function_tool
+from exeat.cli import main
+from exeat.decision import Denied, Effect
+from exeat.demo.backend import FinanceBackend
+from exeat.diff.compare import Finding
+from exeat.diff.markdown import render_markdown
+from exeat.diff.sarif import render_sarif
+from exeat.errors import ExeatError
+from exeat.explain import render_explanation
+from exeat.ledger import Ledger
+from exeat.locate import finance_example_dir
+from exeat.mcp.http import HttpGateway, make_http_server
+from exeat.mcp.server import Session
+from exeat.policy.cases import run_cases
+from exeat.policy.schema import POLICY_SCHEMA
+from exeat.runtime.leash import Leash
+from exeat.signing import generate_keypair, sign_file, verify_file
+from exeat.webhook import notify_hold
 
 ROOT = finance_example_dir()
 NOW = datetime(2026, 4, 2, 15, 0, tzinfo=UTC)
@@ -101,7 +101,7 @@ def test_sign_and_verify_roundtrip(tmp_path: Path) -> None:
     assert signature.is_file()
     verify_file(policy, public_path)
     policy.write_text(policy.read_text(encoding="utf-8") + "\n", encoding="utf-8")
-    with pytest.raises(AgentleashError, match="does not match"):
+    with pytest.raises(ExeatError, match="does not match"):
         verify_file(policy, public_path)
 
 

@@ -3,9 +3,9 @@ from pathlib import Path
 
 import pytest
 
-from agentleash.errors import PolicyError
-from agentleash.locate import finance_example_dir
-from agentleash.policy.load import load_manifest, load_policy, parse_policy
+from exeat.errors import PolicyError
+from exeat.locate import finance_example_dir
+from exeat.policy.load import load_manifest, load_policy, parse_policy
 
 
 def test_example_files_load() -> None:

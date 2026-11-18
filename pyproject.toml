@@ -1,6 +1,6 @@
 [project]
-name = "agentleash"
-description = "Decide what an AI agent is allowed to spend, send, and open."
+name = "exeat"
+description = "The permission slip for AI agents."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
@@ -32,10 +32,10 @@ dev = [
 postgres = ["psycopg[binary]>=3.1"]
 
 [project.scripts]
-agentleash = "agentleash.cli:main"
+exeat = "exeat.cli:main"
 
 [tool.hatch.version]
-path = "src/agentleash/brand.py"
+path = "src/exeat/brand.py"
 pattern = "VERSION = \"(?P<version>[^\"]+)\""
 
 [build-system]
@@ -49,7 +49,7 @@ addopts = "-q"
 
 [tool.coverage.run]
 branch = true
-source = ["agentleash"]
+source = ["exeat"]
 omit = ["*/__main__.py"]
 
 [tool.coverage.report]
@@ -69,7 +69,7 @@ select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 
 [tool.mypy]
 python_version = "3.11"
-packages = ["agentleash"]
+packages = ["exeat"]
 mypy_path = "src"
 strict = true
 warn_unused_ignores = true

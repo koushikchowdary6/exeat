@@ -25,18 +25,18 @@ jobs:
       - name: Typecheck
         run: mypy src
       - name: Test
-        run: pytest --cov=agentleash --cov-fail-under=90
+        run: pytest --cov=exeat --cov-fail-under=90
       - name: Docs
         run: mkdocs build --strict
       - name: Demo
-        run: python -m agentleash demo --audit /tmp/agentleash-audit.jsonl --approvals /tmp/agentleash-approvals.jsonl
+        run: python -m exeat demo --audit /tmp/exeat-audit.jsonl --approvals /tmp/exeat-approvals.jsonl
       - name: Policy cases
-        run: python -m agentleash test examples/finance-assistant/policy-tests.yaml
+        run: python -m exeat test examples/finance-assistant/policy-tests.yaml
       - name: Escalation fixture fails the diff
         shell: bash
         run: |
           set +e
-          python -m agentleash diff --example escalation
+          python -m exeat diff --example escalation
           test $? -eq 1
       - name: Narrowing fixture passes the diff
-        run: python -m agentleash diff --example narrowing
+        run: python -m exeat diff --example narrowing
