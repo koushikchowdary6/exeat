@@ -9,6 +9,9 @@ nav:
   - Integrations: integrations.md
   - MCP: mcp.md
   - Encord Merlin: encord.md
+  - Engineering decisions: engineering-decisions.md
+  - Experiments:
+      - Approval replay: experiments/approval-replay.md
   - Threat model: threat-model.md
   - Comparisons: comparisons.md
   - Roadmap: roadmap.md

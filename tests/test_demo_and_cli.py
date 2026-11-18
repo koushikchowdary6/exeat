@@ -24,6 +24,37 @@ def test_demo_script_matches_every_expected_decision(tmp_path: Path) -> None:
     assert shell.output is None
 
 
+def test_payment_demo_runs_the_nine_hundred_dollar_sequence(tmp_path: Path) -> None:
+    from exeat.demo.scenario import payment_steps
+
+    results = run_demo(
+        audit_path=tmp_path / "audit.jsonl",
+        approval_path=tmp_path / "approvals.jsonl",
+        steps=payment_steps(),
+    )
+    assert [result.step.id for result in results] == [
+        "pay-180",
+        "pay-600",
+        "pay-900-hold",
+        "pay-900-approved",
+        "pay-900-again",
+    ]
+    assert all(result.ok for result in results)
+    assert (
+        main(
+            [
+                "demo",
+                "--payment",
+                "--audit",
+                str(tmp_path / "cli.jsonl"),
+                "--approvals",
+                str(tmp_path / "cli-ok.jsonl"),
+            ]
+        )
+        == 0
+    )
+
+
 def test_cli_demo_diff_check_and_chart(tmp_path: Path) -> None:
     audit = tmp_path / "audit.jsonl"
     approvals = tmp_path / "approvals.jsonl"

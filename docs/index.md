@@ -1,7 +1,7 @@
 # Exeat
 
-Exeat, Latin for "let them go out," is the permission slip an AI agent needs before it spends, sends, or opens anything.
+The permission slip for AI agents.
 
-It sits on the tool call. The call is allowed, denied, or held for a person, and the reason is a sentence. The same policy is diffed before it ships, so a reviewer sees what an agent newly gains.
+Runtime authorization and permission-change detection for AI agents. The check is on the tool call. A prompt is not an authorization boundary.
 
-The finance demo runs offline. It does not spend money, send mail, or call a model. This project is not published to PyPI.
+The finance demo runs offline. It does not spend money, send mail, or call a model. This project is not published to PyPI. Decision notes are in [Engineering decisions](engineering-decisions.md). The approval-replay experiment is in [Approval replay](experiments/approval-replay.md); its results section is empty.

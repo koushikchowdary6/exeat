@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -37,6 +38,7 @@ def run_demo(
     approval_path: Path | None = None,
     clock: Clock | None = None,
     by: str = "demo-controller",
+    steps: Sequence[Step] | None = None,
 ) -> list[StepResult]:
     example = root or finance_example_dir()
     chosen = clock or SystemClock()
@@ -47,7 +49,7 @@ def run_demo(
     backend = FinanceBackend(example)
     leashes = {agent.name: Leash(policy, manifest, agent.name, audit, approvals, chosen) for agent in policy.agents}
     results: list[StepResult] = []
-    for step in finance_steps():
+    for step in finance_steps() if steps is None else steps:
         leash = leashes[step.agent]
         if step.approve_before:
             approvals.grant(
@@ -72,12 +74,15 @@ def _call(backend: FinanceBackend, tool: str, arguments: dict[str, Any]) -> Any:
     return execute
 
 
-def render_demo(results: list[StepResult]) -> str:
+def render_demo(results: list[StepResult], *, preamble: str | None = None) -> str:
     lines = [
         "exeat demo  ·  finance-assistant  ·  Northwind Books",
         "deny by default  ·  builtin tools  ·  no network",
         "",
     ]
+    if preamble:
+        lines.append(preamble.rstrip())
+        lines.append("")
     allows = denies = holds = 0
     for index, result in enumerate(results, start=1):
         effect = result.decision.effect

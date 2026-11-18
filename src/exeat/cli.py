@@ -28,6 +28,7 @@ from exeat.chart import render_chart
 from exeat.decision import Effect
 from exeat.demo.backend import FinanceBackend
 from exeat.demo.run import render_demo, run_demo
+from exeat.demo.scenario import payment_steps
 from exeat.diff.compare import diff_documents, should_fail
 from exeat.diff.render import render_json, render_text
 from exeat.errors import ExeatError
@@ -76,6 +77,11 @@ def build_parser() -> argparse.ArgumentParser:
     demo = commands.add_parser("demo", help="run the offline finance assistant")
     _add_state_flags(demo)
     demo.add_argument("--keep", action="store_true", help="append to the existing demo tape")
+    demo.add_argument(
+        "--payment",
+        action="store_true",
+        help="run only the $900 payment: hold, allow after approval, deny on the daily ceiling",
+    )
     demo.set_defaults(func=cmd_demo)
 
     diff = commands.add_parser("diff", help="compare permissions between two policies")
@@ -219,12 +225,21 @@ def cmd_demo(args: argparse.Namespace) -> int:
             extra = Path(str(paths.ledger) + suffix)
             if extra.exists():
                 extra.unlink()
+    selected = payment_steps() if args.payment else None
     results = run_demo(
         root=paths.sandbox,
         audit_path=paths.audit,
         approval_path=paths.approvals,
+        steps=selected,
     )
-    sys.stdout.write(render_demo(results))
+    preamble = None
+    if args.payment:
+        preamble = (
+            "Same $900 transfer, three times. The role holds amounts above $700, "
+            "allows $1,000 per call, and allows $2,500 per day. "
+            "$180 and $600 are committed first so the last $900 crosses the daily ceiling."
+        )
+    sys.stdout.write(render_demo(results, preamble=preamble))
     print(f"audit      {paths.audit}")
     print("dashboard  python -m exeat dashboard")
     missed = [result for result in results if not result.ok]

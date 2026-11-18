@@ -26,6 +26,16 @@ class Step:
     approve_before: bool = False
 
 
+_PAYMENT_ORDER = ("pay-180", "pay-600", "pay-900-hold", "pay-900-approved", "pay-900-again")
+
+
+def payment_steps() -> tuple[Step, ...]:
+    """The $900 transfer, plus the two earlier payments that make the daily ceiling bind."""
+
+    by_id = {step.id: step for step in finance_steps()}
+    return tuple(by_id[step_id] for step_id in _PAYMENT_ORDER)
+
+
 def finance_steps() -> tuple[Step, ...]:
     """One pass of the demo, in the order spend is supposed to accumulate."""
 

@@ -1,20 +1,88 @@
 # Exeat
 
-**Exeat: the permission slip for AI agents.**
+**The permission slip for AI agents.**
 
-Exeat is Latin for "let them go out," the historic slip that let someone leave. An agent gets the same kind of slip: a written grant for what it may spend, send, and open, checked on the tool call and diffed before it ships.
+Runtime authorization and permission-change detection for AI agents.
 
 [![CI](https://github.com/koushikchowdary6/exeat/actions/workflows/ci.yml/badge.svg)](https://github.com/koushikchowdary6/exeat/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 
-![The local permission board: roles, two agents with spend meters, and a held payment](docs/images/board.png)
+## The problem
 
-![The same board allows a $180 payment, holds a $900 payment, and denies a read of secrets/api-keys.txt](docs/assets/demo.gif)
+Instructions in a prompt are not an authorization boundary. The model can be talked into requesting a tool call the operator did not intend. The check has to happen on the tool call, in a process the model does not control, before the tool runs.
 
-Northwind Books is fictional. The demo does not spend money, send mail, or use the network.
+## What it does
 
-## 30-second start
+Three capabilities:
+
+1. **Runtime allow, deny, or hold.** `evaluate` in `src/exeat/policy/evaluate.py` decides one call. Deny and hold do not run the tool. A hold can be lifted only by an approval whose fingerprint matches that call (`src/exeat/canon.py`, `src/exeat/runtime/approvals.py`).
+2. **Permission-change detection in CI.** `exeat diff` compares two policies after inheritance and exits non-zero when a grant grows. The workflow is `.github/workflows/permission-diff.yml`.
+3. **Auditability.** Each decision is appended to a hash-chained JSONL tape (`src/exeat/runtime/audit.py`). `exeat audit verify` recomputes the chain.
+
+## Design questions
+
+The implementation is aimed at four questions. The code, not this paragraph, is the answer.
+
+- Can the decision ignore the model output and the prompt, and look only at the tool name and arguments?
+- Do spend ceilings still hold when two calls are in flight? The reservation path is `Ledger.try_reserve` in `src/exeat/ledger.py`.
+- Is an approval bound to one exact action? The fingerprint is a truncated SHA-256 of agent, tool, and canonical arguments. Replay is an open experiment: [docs/experiments/approval-replay.md](docs/experiments/approval-replay.md).
+- Does CI notice when a policy edit gives an agent something it did not have?
+
+Notes on those mechanisms are in [docs/engineering-decisions.md](docs/engineering-decisions.md). Several "why" sections there are still empty on purpose.
+
+## Current limitations
+
+- Early-stage. The public API is the CLI and `Leash`. It will move.
+- Not independently audited.
+- The OpenAI Agents SDK, LangChain, and CrewAI wrappers are tested with stand-ins. They do not import those packages unless you installed them.
+- The Encord integration is unofficial. Encord does not endorse it. The demo talks to a mock Merlin, not to `mcp.encord.com`.
+
+This repository is built with AI coding agents under the author's direction.
+
+## Flagship demo
+
+One agent, one $900 transfer, three outcomes. The role holds transfers above $700, allows $1,000 per call, and allows $2,500 per day. The command commits a $180 payment and a $600 payment first, so the last $900 crosses the daily ceiling. Nothing is sent to a bank. Northwind Books is fictional.
+
+```bash
+python3 -m pip install -e .
+python3 -m exeat demo --payment
+```
+
+Captured from one run of that command:
+
+```
+exeat demo  ·  finance-assistant  ·  Northwind Books
+deny by default  ·  builtin tools  ·  no network
+
+Same $900 transfer, three times. The role holds amounts above $700, allows $1,000 per call, and allows $2,500 per day. $180 and $600 are committed first so the last $900 crosses the daily ceiling.
+
+ 1  ALLOW  finance-assistant     ledger.transfer
+         $180 to VEND-OAK
+         Allowed: ledger.transfer is granted to finance-assistant. $180.00 is within the per-call ceiling of $1,000.00. Today $180.00 of $2,500.00. Total $180.00 of $10,000.00.
+ 2  ALLOW  finance-assistant     ledger.transfer
+         $600 to VEND-INK
+         Allowed: ledger.transfer is granted to finance-assistant. $600.00 is within the per-call ceiling of $1,000.00. Today $780.00 of $2,500.00. Total $780.00 of $10,000.00.
+ 3  HOLD   finance-assistant     ledger.transfer
+         $900 to VEND-OAK
+         Needs a person: $900.00 on ledger.transfer. Transfers above $700 need a person. (large-transfer: amount_usd > $700.00 on ledger.transfer).
+ 4  ALLOW  finance-assistant     ledger.transfer
+         $900 to VEND-OAK
+         Allowed: ledger.transfer is granted to finance-assistant. $900.00 is within the per-call ceiling of $1,000.00. Today $1,680.00 of $2,500.00. Total $1,680.00 of $10,000.00. Approval apr_72727bbe9087 by demo-controller covers this call.
+ 5  DENY   finance-assistant     ledger.transfer
+         $900 to VEND-OAK
+         Denied: $900.00 would bring today's spend to $2,580.00, over the daily ceiling of $2,500.00.
+
+5 calls  ·  3 allowed  ·  1 held  ·  1 denied
+audit      /tmp/exeat-payment-audit.jsonl
+dashboard  python -m exeat dashboard
+```
+
+The approval id (`apr_72727bbe9087` in this capture) is random on each run. The effects, rules, and dollar amounts are not. Re-run the command and compare those.
+
+`exeat check` does not write the audit log. Exit 0 is allow, 1 is deny, 3 is hold, 2 is a bad policy or bad usage.
+
+## Install
 
 Python 3.11 or newer.
 
@@ -26,133 +94,52 @@ python3 -m exeat demo
 python3 -m exeat dashboard
 ```
 
-Twenty scripted calls. Eight are allowed, one waits for a person, eleven are denied. Then open [http://127.0.0.1:4747](http://127.0.0.1:4747). The board is loopback only. There is no account, no telemetry, and no model key.
+`exeat demo` is the longer offline script (20 calls). The board is [http://127.0.0.1:4747](http://127.0.0.1:4747), loopback only, with no account and no model key.
 
-## What you get
+![The local permission board: roles, two agents with spend meters, and a held payment](docs/images/board.png)
 
-- **A deny-by-default policy.** Roles, agents, tools, spend ceilings, recipients, file and URL and table scopes, and rules that need a person. An agent can only narrow a role. Protected paths such as `secrets/` and `.env` cannot be granted.
-- **A runtime gate.** A Python decorator, MCP over stdio, and MCP over HTTP/SSE. Drop-in wrappers for the OpenAI Agents SDK, LangChain/LangGraph, and CrewAI. Those libraries stay optional.
-- **A spend ledger.** SQLite by default, with atomic reservations across processes. Postgres is an optional extra when more than one machine must share the totals.
-- **A human on the hold.** Approve or deny from the board or the CLI. An optional webhook is notified. If it is unset, or the POST fails, the decision does not change.
-- **A permission diff.** `exeat diff` exits non-zero when an agent gains authority. The GitHub Action comments a markdown table and uploads SARIF. A pre-commit hook covers the same check.
-- **Signed policies.** Ed25519 over the file bytes, plus `validate`, `test`, and `explain`.
-- **Three offline examples.** A finance clerk, a support inbox, and a research assistant. No model key.
+## Also in the tree
 
-```
-policy.yaml ──┐
-manifest.yaml ┼──► exeat ── allow / deny / hold ──► tool
-ledger + audit ◄─┘            │
-                              └── CI diff on the pull request
-```
-
-The policy language is documented in [docs/policy.md](docs/policy.md). The docs site is MkDocs: `python3 -m mkdocs serve`.
-
-## Comparisons
-
-| | Exeat | OPA, Cedar | promptfoo, garak |
-| --- | --- | --- | --- |
-| Question | What may this agent spend, send, and open, and what just changed? | Does this request satisfy a policy you wrote? | Does this model fail a safety eval? |
-| When it runs | On the tool call, and again as a diff on the pull request | Wherever you evaluate the policy | In an eval or a red-team run |
-| Spend, recipients, paths | First-class, deny by default | Only if you model them | No |
-| Sees permission drift before merge | Yes. That is the point. | You would build the diff | No |
-| Tests whether the model obeys the prompt | No | No | Yes |
-
-OPA and Cedar are real languages. They can express an agent policy if you write the model of tools, money, and paths yourself. They will not tell a reviewer that `finance-assistant` just gained `shell.exec` and a $5,000 ceiling. promptfoo and garak are the right tools for "does the model follow the injection." They do not sit between the model and the tool, and they do not fail a pull request because a ceiling went up.
-
-Exeat is the narrow piece in the middle. It does not replace either of them.
-
-## The finance demo
-
-`finance-assistant` is a scripted accounts-payable clerk. `finance-intern` has the same role and a $50 ceiling. The invoice memo is poisoned. The gate never reads it. It sees the tool call the injection asked for, and that tool is not granted.
-
-```
- 5  ALLOW  finance-assistant     ledger.transfer
-         $180 to VEND-OAK
- 8  HOLD   finance-assistant     ledger.transfer
-         $900 to VEND-OAK
-         Needs a person: Transfers above $700 need a person.
- 9  ALLOW  finance-assistant     ledger.transfer
-         $900 to VEND-OAK
-         Approval covers this call. Today $1,680.00 of $2,500.00.
-10  DENY   finance-assistant     ledger.transfer
-         $900.00 would bring today's spend to $2,580.00, over $2,500.00.
-13  DENY   finance-assistant     files.read
-         secrets/api-keys.txt matches protected pattern **/secrets/**
-18  DENY   finance-assistant     shell.exec
-         tool shell.exec is not declared, so the call was not forwarded.
-19  DENY   finance-assistant     email.send
-         bcc attacker@evil.test is outside the allowed domains.
-20  DENY   finance-intern        ledger.transfer
-         $180.00 exceeds the per-call ceiling of $50.00.
-```
-
-A hold does not raise a ceiling. The second $900 is denied on the daily limit even though it would also have needed a person. `bcc` is not in the manifest. The name is reserved, so it is still checked.
-
-The same calls are on the board under **Try a call**, including the secrets denial while the server is running: [http://127.0.0.1:4747/?preset=read-secrets&run=1](http://127.0.0.1:4747/?preset=read-secrets&run=1).
-
-![A denied read of secrets/api-keys.txt, stamped Deny](docs/images/deny.png)
-
-Two more examples live beside it: `examples/support-inbox` and `examples/research-assistant`. Each has a policy, a manifest, and `policy-tests.yaml`.
-
-An unofficial fourth example sits in front of an Encord Merlin-shaped MCP server. Encord does not endorse it. The demo uses a local mock, holds a prompt-injected self-admin grant, and verifies a hash-chained audit log.
-
-```bash
-python3 -m exeat encord-demo
-```
+- Deny-by-default policy: roles, agents, tools, spend ceilings, recipients, file, URL, and table scopes, approval rules, and optional per-minute rate limits. An agent can only narrow a role. Protected paths such as `secrets/` and `.env` cannot be granted. Reference: [docs/policy.md](docs/policy.md).
+- A Python decorator, MCP on stdio, and MCP over HTTP/SSE. Optional wrappers for the OpenAI Agents SDK, LangChain/LangGraph, and CrewAI.
+- SQLite ledger by default. Postgres is an optional extra (`psycopg`) for a shared ledger. The demo does not start Postgres.
+- `exeat approve` and `exeat deny`, or the same actions on the board. An optional webhook is notified on hold. A failed POST does not change the decision.
+- Ed25519 signatures over the policy file bytes: `exeat keygen`, `exeat sign`, `exeat verify`.
+- Examples: `examples/finance-assistant`, `examples/support-inbox`, `examples/research-assistant`. Each has `policy-tests.yaml`.
+- Unofficial Encord Merlin guard: `examples/encord-merlin-guard` and `python3 -m exeat encord-demo`. Mock upstream. See [docs/encord.md](docs/encord.md).
 
 ```bash
 python3 -m exeat test examples/finance-assistant/policy-tests.yaml
 python3 -m exeat test examples/support-inbox/policy-tests.yaml
 python3 -m exeat test examples/research-assistant/policy-tests.yaml
+python3 -m exeat test examples/encord-merlin-guard/policy-tests.yaml
 ```
 
-## The CI diff
+Docs site: `python3 -m mkdocs serve`.
 
-This is the part to show a reviewer. The fixture `examples/finance-assistant/fixtures/escalated-policy.yaml` is a bad edit of the demo policy: a shell tool, higher ceilings, `evil.test`, a looser hold, and a manifest that pretends `path` is a plain string.
+## Permission diff
+
+`examples/finance-assistant/fixtures/escalated-policy.yaml` is a widened edit of the demo policy: a shell tool, higher ceilings, another recipient domain, a looser hold, and a manifest that labels `path` as a plain string.
 
 ```bash
 python3 -m exeat diff --example escalation
 ```
 
-```
-HIGH  agent finance-intern
-      Raised the per-call ceiling from $50.00 to $800.00.
-HIGH  manifest
-      files.read argument path changed from path to string.
-      Reserved names are still enforced at runtime, but the manifest
-      no longer tells reviewers the truth.
-HIGH  role finance-analyst
-      Approval large-transfer threshold rose from $700.00 to $5,000.00.
-HIGH  role finance-analyst
-      Gained tool shell.exec. Now held by finance-assistant,
-      finance-intern, payroll-bot.
-HIGH  role finance-analyst
-      New recipient domain evil.test.
-MED   agent payroll-bot
-      New agent payroll-bot on role finance-analyst.
-NOTE  role finance-reader
-      Narrowed table allow by dropping finance.vendors.
-
-11 high, 2 medium, 1 low, 2 note. Risky escalation: failing CI at medium and above.
-```
-
-The command exits 1. A tightening of the same policy exits 0:
+The command exits 1. High means an existing grant grew or a check was removed. Medium means a new principal or a new single address. Both fail by default. `--fail-on high` still prints the medium findings and does not fail on them. A tightening exits 0:
 
 ```bash
 python3 -m exeat diff --example narrowing
 ```
 
-High means an existing grant grew or a check was removed. Medium means a new principal or a new single address. Both fail by default. `--fail-on high` keeps the new-agent warning and does not fail the job on it.
-
-Wire it to pull requests with [`.github/workflows/permission-diff.yml`](.github/workflows/permission-diff.yml) and the composite action in [`.github/actions/exeat-diff`](.github/actions/exeat-diff/action.yml). The action comments a markdown table on the pull request, writes SARIF, and fails the job. Copy the workflow and point `policy` and `manifest` at your files. From another repository:
+Wire it with [`.github/workflows/permission-diff.yml`](.github/workflows/permission-diff.yml) and [`.github/actions/exeat-diff`](.github/actions/exeat-diff/action.yml). The action comments a markdown table and writes SARIF. From another repository:
 
 ```yaml
 - uses: koushikchowdary6/exeat/.github/actions/exeat-diff@main
 ```
 
-Publishing that action to a dedicated repository is still ahead. The copy in this repository is the one CI runs.
+That action is not published as its own repository. The copy in this tree is what CI runs.
 
-Between git refs, from a checkout:
+Between git refs:
 
 ```bash
 python3 -m exeat diff \
@@ -162,9 +149,9 @@ python3 -m exeat diff \
   --manifest tool-manifest.yaml
 ```
 
-A local hook does the same check before commit. See [`.pre-commit-config.yaml`](.pre-commit-config.yaml).
+`.pre-commit-config.yaml` runs `python -m exeat hook` on changed policy files.
 
-## Use it from Python
+## From Python
 
 ```python
 from exeat import Leash
@@ -184,18 +171,18 @@ def transfer(amount_usd: float, vendor_id: str, memo: str = "") -> dict:
 transfer(amount_usd=180, vendor_id="VEND-OAK")
 ```
 
-A denial raises `Denied`. A hold raises `ApprovalRequired`. Neither runs the function. `exeat approve` records a grant bound to those exact arguments. It expires, and it is consumed when the call is reserved. `exeat deny` records a rejection of that same call.
-
-One agent per MCP process. The board can try any agent in the file because it is an operator console, not the agent.
+`Denied` and `ApprovalRequired` are raised before the function runs. `exeat approve` records a grant for that agent, tool, and argument fingerprint. It expires. `Leash.run` appends a `consumed` record when an allow that carries the approval id is audited.
 
 ```bash
 python3 -m exeat mcp          # stdio
 python3 -m exeat mcp-http     # HTTP and server-sent events, port 4748
 ```
 
-## Decisions
+One agent per MCP process. The board can try any agent in the file because it is an operator console.
 
-Deny by default. The order is: unknown agent, undeclared tool, tool not granted, bad arguments, path and URL and table and recipient scope, spend ceilings, then approval. Protected paths (`.env`, `secrets/`, private keys, credential files) lose even to an allow of `**`, and the policy cannot turn that list off.
+## Decision order
+
+Deny by default. `evaluate` checks: unknown agent, undeclared tool, tool not granted, arguments, path and URL and table and recipient scope, spend ceilings, rate limits, then approval. Protected paths lose even to an allow of `**`. The policy cannot turn that list off.
 
 | Effect | `exeat check` exit |
 | --- | --- |
@@ -206,8 +193,6 @@ Deny by default. The order is: unknown agent, undeclared tool, tool not granted,
 
 `check` does not write the audit log. The decorator, MCP, the demo, and the board do.
 
-Ask why a call lost:
-
 ```bash
 python3 -m exeat explain \
   --agent finance-assistant \
@@ -215,25 +200,15 @@ python3 -m exeat explain \
   --args '{"path":"secrets/api-keys.txt"}'
 ```
 
-## Limits
+## What it does not do
 
-- The condition language is the small one in the policy file: `always`, and one numeric threshold. It is not Rego or Cedar.
+- The condition language is `always` and one numeric threshold. It is not Rego or Cedar.
 - An allowed tool can still be misused inside its scope.
-- Glob comparison in the diff is conservative. An unusual pattern change can be flagged as a widening when it is not. Hiding a real widening is the failure this tries to avoid.
+- Glob comparison in the diff is conservative. An unusual pattern change can be flagged as a widening when it is not.
 - The protected-path list is a denylist of obvious places, not data-loss prevention.
-- Postgres is optional and is not started by the demo. The default ledger is a local SQLite file.
-- The framework wrappers are tested with stand-ins. They do not import the SDKs unless you have installed them.
 - Nothing is published to PyPI. The `Private :: Do Not Upload` classifier is set on purpose.
 
-## Roadmap
-
-The longer list, including six good-first issues, is in [docs/roadmap.md](docs/roadmap.md).
-
-- YAML line numbers on validation errors.
-- Signature status on the board.
-- A skipped test against a real Postgres.
-- Approval conditions past a single threshold, still deny-by-default.
-- A local approval inbox that is easier to clear than a JSONL file.
+A comparison with OPA, Cedar, promptfoo, and garak is in [docs/comparisons.md](docs/comparisons.md). Those tools answer different questions. This one does not replace them.
 
 ## Project layout
 
@@ -242,18 +217,23 @@ src/exeat/                         gate, diff, MCP, board
 examples/finance-assistant/        policy, manifest, synthetic books, bad fixtures
 examples/support-inbox/            refunds that need a person
 examples/research-assistant/       notes and a docs host, no spend
-docs/                              MkDocs site
+examples/encord-merlin-guard/      unofficial Merlin policy and mock
+docs/engineering-decisions.md      decision template, mostly unfilled
+docs/experiments/                  approval-replay experiment, results blank
+scripts/approval_replay.py         runs that experiment and prints outcomes
 .github/actions/exeat-diff/        composite action
 .github/workflows/                 CI, permission diff, and a draft release
 ```
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Tests, ruff, and mypy run in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) on Python 3.11, 3.12, and 3.13.
+See [CONTRIBUTING.md](CONTRIBUTING.md). Tests, ruff, and mypy run in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) on Python 3.11, 3.12, and 3.13. Coverage fails under 90%.
+
+The longer list is in [docs/roadmap.md](docs/roadmap.md).
 
 ## Security
 
-See [SECURITY.md](SECURITY.md). The short version: the policy is trusted more than the agent, the gate sees tool calls rather than prompts, and the local board has no authentication because it binds to loopback.
+See [SECURITY.md](SECURITY.md). The policy is trusted more than the agent. The gate sees tool calls rather than prompts. The local board has no authentication because it binds to loopback.
 
 ## License
 
