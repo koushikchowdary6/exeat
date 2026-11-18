@@ -21,6 +21,7 @@ from exeat.policy.model import (
     Effective,
     Manifest,
     Policy,
+    RateLimit,
     ScopeSet,
     SpendLimits,
     ToolSpec,
@@ -154,6 +155,7 @@ def _compare_role(head: Policy, before: Effective, after: Effective) -> list[Fin
     findings.extend(_scope_changes("url", before.urls, after.urls, subject))
     findings.extend(_scope_changes("table", before.tables, after.tables, subject))
     findings.extend(_approval_changes(before.approvals, after.approvals, subject))
+    findings.extend(_rate_changes(before.rates, after.rates, subject))
     return findings
 
 
@@ -211,6 +213,67 @@ def _compare_override(
                         f"Removed {kind} deny {pattern}.",
                     )
                 )
+    return findings
+
+
+def _rate_changes(before: tuple[RateLimit, ...], after: tuple[RateLimit, ...], subject: str) -> list[Finding]:
+    before_map = {limit.name: limit for limit in before}
+    after_map = {limit.name: limit for limit in after}
+    findings: list[Finding] = []
+    for name in sorted(set(before_map) - set(after_map)):
+        findings.append(Finding("high", "rate.removed", subject, f"Removed rate limit {name}."))
+    for name in sorted(set(after_map) - set(before_map)):
+        limit = after_map[name]
+        tools = ", ".join(sorted(limit.tools))
+        findings.append(
+            Finding(
+                "note",
+                "rate.added",
+                subject,
+                f"Added rate limit {name}: {limit.per_minute} calls per minute on {tools}.",
+            )
+        )
+    for name in sorted(set(before_map) & set(after_map)):
+        old = before_map[name]
+        new = after_map[name]
+        if new.per_minute > old.per_minute:
+            findings.append(
+                Finding(
+                    "high",
+                    "rate.loosened",
+                    subject,
+                    f"Rate limit {name} rose from {old.per_minute} to {new.per_minute} calls per minute.",
+                )
+            )
+        elif new.per_minute < old.per_minute:
+            findings.append(
+                Finding(
+                    "note",
+                    "rate.tightened",
+                    subject,
+                    f"Rate limit {name} fell from {old.per_minute} to {new.per_minute} calls per minute.",
+                )
+            )
+        dropped = sorted(old.tools - new.tools)
+        added = sorted(new.tools - old.tools)
+        if dropped:
+            findings.append(
+                Finding(
+                    "high",
+                    "rate.uncovered",
+                    subject,
+                    f"Rate limit {name} no longer covers {', '.join(dropped)}.",
+                )
+            )
+        if added:
+            findings.append(
+                Finding(
+                    "note",
+                    "rate.covered",
+                    subject,
+                    f"Rate limit {name} now covers {', '.join(added)}.",
+                )
+            )
     return findings
 
 

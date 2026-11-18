@@ -1,0 +1,50 @@
+policy: agent-policy.yaml
+manifest: tool-manifest.yaml
+cases:
+  - name: list projects
+    agent: merlin-assistant
+    tool: list_projects
+    arguments: {}
+    expect: allow
+  - name: search projects
+    agent: merlin-assistant
+    tool: search_projects
+    arguments:
+      query: atlas
+    expect: allow
+  - name: self-admin is held
+    agent: merlin-assistant
+    tool: set_project_collaborator_role
+    arguments:
+      project_id: proj_atlas
+      user_email: agent@example.test
+      role: admin
+    expect: require_approval
+    rule: approval.required
+  - name: add collaborator is held
+    agent: merlin-assistant
+    tool: add_project_collaborator
+    arguments:
+      project_id: proj_atlas
+      user_email: agent@example.test
+      role: viewer
+    expect: require_approval
+  - name: delete project is held
+    agent: merlin-assistant
+    tool: delete_project
+    arguments:
+      project_id: proj_atlas
+    expect: require_approval
+  - name: remove group member is held
+    agent: merlin-assistant
+    tool: remove_workspace_group_member
+    arguments:
+      group_id: grp_labelers
+      user_email: agent@example.test
+    expect: require_approval
+  - name: undeclared export is denied
+    agent: merlin-assistant
+    tool: export_api_keys
+    arguments: {}
+    expect: deny
+    rule: tool.undeclared

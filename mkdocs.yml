@@ -8,6 +8,7 @@ nav:
   - Policy reference: policy.md
   - Integrations: integrations.md
   - MCP: mcp.md
+  - Encord Merlin: encord.md
   - Threat model: threat-model.md
   - Comparisons: comparisons.md
   - Roadmap: roadmap.md

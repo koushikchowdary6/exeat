@@ -28,6 +28,14 @@ python3 -m exeat mcp --example --agent finance-assistant
 
 Put `-- python server.py` after the flags to proxy another stdio server. A denied call is not forwarded.
 
+## Encord Merlin (unofficial)
+
+Exeat Guard for Encord Merlin is an unofficial proxy, policy, and mock. Encord does not endorse it. The page is [Encord Merlin](encord.md).
+
+```bash
+python3 -m exeat encord-demo
+```
+
 ## MCP over HTTP and SSE
 
 ```bash

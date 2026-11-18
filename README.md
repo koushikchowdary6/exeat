@@ -94,6 +94,12 @@ The same calls are on the board under **Try a call**, including the secrets deni
 
 Two more examples live beside it: `examples/support-inbox` and `examples/research-assistant`. Each has a policy, a manifest, and `policy-tests.yaml`.
 
+An unofficial fourth example sits in front of an Encord Merlin-shaped MCP server. Encord does not endorse it. The demo uses a local mock, holds a prompt-injected self-admin grant, and verifies a hash-chained audit log.
+
+```bash
+python3 -m exeat encord-demo
+```
+
 ```bash
 python3 -m exeat test examples/finance-assistant/policy-tests.yaml
 python3 -m exeat test examples/support-inbox/policy-tests.yaml

@@ -155,9 +155,17 @@ def build_parser() -> argparse.ArgumentParser:
     hook.add_argument("--repo", type=Path, default=Path("."))
     hook.set_defaults(func=cmd_hook)
 
-    audit = commands.add_parser("audit", help="print the audit tape")
+    audit = commands.add_parser("audit", help="print, verify, or export the hash-chained audit tape")
     _add_state_flags(audit)
     audit.add_argument("--follow", action="store_true")
+    audit_commands = audit.add_subparsers(dest="audit_command")
+    audit_verify = audit_commands.add_parser("verify", help="recompute the hash chain and fail if it was edited")
+    _add_state_flags(audit_verify)
+    audit_verify.set_defaults(func=cmd_audit_verify)
+    audit_export = audit_commands.add_parser("export", help="write the tape as a JSON document")
+    _add_state_flags(audit_export)
+    audit_export.add_argument("--out", type=Path, default=None)
+    audit_export.set_defaults(func=cmd_audit_export)
     audit.set_defaults(func=cmd_audit)
 
     chart = commands.add_parser("chart", help="print the org chart")
@@ -185,7 +193,18 @@ def build_parser() -> argparse.ArgumentParser:
     http.add_argument("--agent", default=None)
     http.add_argument("--host", default="127.0.0.1")
     http.add_argument("--port", type=int, default=4748)
+    http.add_argument("--upstream", default=None, help="upstream MCP HTTP URL; the OAuth bearer is forwarded unchanged")
+    http.add_argument("--region", choices=("eu", "us"), default=None, help="Merlin region when --upstream is omitted")
     http.set_defaults(func=cmd_mcp_http)
+
+    encord = commands.add_parser(
+        "encord-demo",
+        help="run the unofficial Encord Merlin guard against the local mock server",
+    )
+    encord.add_argument("--audit", default=None)
+    encord.add_argument("--approvals", default=None)
+    encord.add_argument("--pace", type=float, default=0.0, help="seconds to pause between demo lines")
+    encord.set_defaults(func=cmd_encord_demo)
     return parser
 
 
@@ -337,18 +356,40 @@ def cmd_hook(args: argparse.Namespace) -> int:
 
 
 def cmd_mcp_http(args: argparse.Namespace) -> int:
+    from exeat.integrations.encord.endpoints import merlin_mcp_url
     from exeat.mcp.http import HttpGateway, serve_http, server_banner
+    from exeat.mcp.upstream_http import HttpUpstream
 
     paths = resolve_paths(args, default_example=True)
-    agent = args.agent or "finance-assistant"
+    upstream = _upstream_url(args, merlin_mcp_url)
+    agent = args.agent or ("merlin-assistant" if upstream else "finance-assistant")
 
     def factory() -> Session:
         leash = _leash(paths, agent)
+        if upstream:
+            return Session(leash, HttpUpstream(upstream), leash.manifest)
         return Session(leash, FinanceBackend(paths.sandbox), leash.manifest)
 
     print(server_banner(args.host, args.port), flush=True)
+    if upstream:
+        print(f"upstream  {upstream}", flush=True)
     serve_http(HttpGateway(factory), args.host, args.port)
     return 0
+
+
+def cmd_encord_demo(args: argparse.Namespace) -> int:
+    from exeat.integrations.encord.demo import run_encord_demo
+
+    streamed = bool(args.pace)
+    code, transcript = run_encord_demo(
+        audit_path=Path(args.audit) if args.audit else None,
+        approval_path=Path(args.approvals) if args.approvals else None,
+        pace=args.pace,
+        out=sys.stdout if streamed else None,
+    )
+    if not streamed:
+        sys.stdout.write(transcript)
+    return code
 
 
 def cmd_audit(args: argparse.Namespace) -> int:
@@ -364,6 +405,36 @@ def cmd_audit(args: argparse.Namespace) -> int:
                 print(f"(no decisions yet in {paths.audit})")
             return 0
         time.sleep(0.5)
+
+
+def cmd_audit_verify(args: argparse.Namespace) -> int:
+    from exeat.runtime.audit import verify_chain
+
+    path = _audit_file(args)
+    failures = verify_chain(path)
+    if failures:
+        print(f"audit chain broken  {path}", file=sys.stderr)
+        for failure in failures:
+            print(f"  line {failure.line}: {failure.detail}", file=sys.stderr)
+        return 1
+    count = len(read_jsonl(path)) if path.exists() else 0
+    print(f"audit chain ok  {count} records  {path}")
+    return 0
+
+
+def cmd_audit_export(args: argparse.Namespace) -> int:
+    from exeat.runtime.audit import export_audit
+
+    path = _audit_file(args)
+    document = export_audit(path)
+    rendered = json.dumps(document, indent=2) + "\n"
+    if args.out is not None:
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        args.out.write_text(rendered, encoding="utf-8")
+        print(args.out)
+        return 0
+    sys.stdout.write(rendered)
+    return 0
 
 
 def cmd_chart(args: argparse.Namespace) -> int:
@@ -542,6 +613,24 @@ def _git_yaml(repo: Path, ref: str, path: str) -> object:
     except yaml.YAMLError as exc:
         raise ExeatError(f"could not parse {ref}:{path}: {exc}") from exc
     return loaded
+
+
+def _upstream_url(args: argparse.Namespace, merlin_mcp_url: Any) -> str | None:
+    region = getattr(args, "region", None)
+    upstream = getattr(args, "upstream", None)
+    if region and upstream:
+        raise ExeatError("pass either --upstream or --region, not both")
+    if upstream:
+        return str(upstream)
+    if region:
+        return str(merlin_mcp_url(str(region)))
+    return None
+
+
+def _audit_file(args: argparse.Namespace) -> Path:
+    if getattr(args, "audit", None):
+        return Path(args.audit)
+    return resolve_paths(args, default_example=True).audit
 
 
 def _leash(paths: Paths, agent: str) -> Leash:

@@ -15,4 +15,4 @@ Publishing to PyPI is intentionally blocked (`Private :: Do Not Upload`). The co
 
 - Signed commits of the policy, not only a detached signature.
 - An approval inbox that is still a local file, but easier to clear than JSONL.
-- MCP HTTP beyond the SSE transport.
+- Client-facing MCP streamable HTTP. `mcp-http` still speaks SSE, and it can already forward to an upstream HTTP MCP server.

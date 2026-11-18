@@ -41,6 +41,15 @@ class ScopeSet:
 
 
 @dataclass(frozen=True)
+class RateLimit:
+    """Shared call budget for a set of tools. The window is one minute."""
+
+    name: str
+    tools: frozenset[str]
+    per_minute: int
+
+
+@dataclass(frozen=True)
 class ApprovalRule:
     """Hold a call for a person. A hold never raises a spend ceiling."""
 
@@ -73,6 +82,7 @@ class Role:
     urls: ScopeSet
     tables: ScopeSet
     approvals: tuple[ApprovalRule, ...]
+    rates: tuple[RateLimit, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -172,6 +182,7 @@ class Effective:
     urls: ScopeSet
     tables: ScopeSet
     approvals: tuple[ApprovalRule, ...]
+    rates: tuple[RateLimit, ...] = ()
 
 
 def _dedupe(items: tuple[str, ...]) -> tuple[str, ...]:
@@ -199,6 +210,7 @@ def _plain_policy(policy: Policy) -> dict[str, object]:
                 "urls": {"allow": list(role.urls.allow), "deny": list(role.urls.deny)},
                 "tables": {"allow": list(role.tables.allow), "deny": list(role.tables.deny)},
                 "approvals": [_plain_approval(rule) for rule in role.approvals],
+                "rates": [_plain_rate(limit) for limit in role.rates],
             }
             for role in policy.roles
         ],
@@ -225,6 +237,10 @@ def _plain_spend(spend: SpendLimits) -> dict[str, object]:
         "total": spend.total,
         "currency": spend.currency,
     }
+
+
+def _plain_rate(limit: RateLimit) -> dict[str, object]:
+    return {"name": limit.name, "per_minute": limit.per_minute, "tools": sorted(limit.tools)}
 
 
 def _plain_approval(rule: ApprovalRule) -> dict[str, object]:

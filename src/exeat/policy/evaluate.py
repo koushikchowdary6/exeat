@@ -8,13 +8,14 @@ Check order:
 4. Required arguments are present, and reserved names keep their sensitive type.
 5. Paths, URLs, tables, and recipients are inside scope. Protected paths always lose.
 6. Spend ceilings: per call, then UTC day, then total. Unset ceilings deny.
-7. Approval rules. A matching unconsumed approval turns a hold into an allow.
+7. Per-tool rate limits, counted from the audit tape over the last minute.
+8. Approval rules. A matching unconsumed approval turns a hold into an allow.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from exeat.brand import RESERVED_ARGUMENT_KINDS
@@ -156,6 +157,11 @@ def evaluate(
             rule, reason = ceiling
             return finish(Effect.DENY, rule, reason, role=effective.role, spend=amount)
         checks.append(Check("pass", "spend.within_ceiling", "The amount is inside the spend ceilings."))
+
+    rate_problem = _rate_problem(effective, tool_name, history, moment)
+    if rate_problem is not None:
+        rule, reason = rate_problem
+        return finish(Effect.DENY, rule, reason, role=effective.role, spend=amount)
 
     denial = _matching_denial(approvals, agent_name, token, moment)
     if denial is not None:
@@ -315,6 +321,46 @@ def _spend_ceiling_problem(
             f"{format_usd(total + amount)}, over the total ceiling of {format_usd(spend.total)}.",
         )
     return None
+
+
+def _rate_problem(
+    effective: Effective,
+    tool_name: str,
+    history: Sequence[Mapping[str, Any]],
+    now: datetime,
+) -> tuple[str, str] | None:
+    window_start = now - timedelta(seconds=60)
+    for limit in effective.rates:
+        if tool_name not in limit.tools:
+            continue
+        count = 0
+        for event in history:
+            if event.get("agent") != effective.subject or event.get("tool") not in limit.tools:
+                continue
+            if event.get("effect") not in {Effect.ALLOW.value, Effect.REQUIRE_APPROVAL.value}:
+                continue
+            moment = _event_time(event.get("ts"))
+            if moment is None or moment < window_start or moment > now:
+                continue
+            count += 1
+        if count >= limit.per_minute:
+            return (
+                "rate.per_minute",
+                f"Denied: {tool_name} is over the {limit.name} limit of {limit.per_minute} calls per minute.",
+            )
+    return None
+
+
+def _event_time(value: object) -> datetime | None:
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return None
+    return parsed.astimezone(UTC)
 
 
 def _matching_approval(

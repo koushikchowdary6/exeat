@@ -91,7 +91,7 @@ class Leash:
             self.agent,
             tool,
             arguments,
-            history=() if self.ledger is not None else self.audit.read(),
+            history=self.audit.read(),
             approvals=self.approvals.read(),
             now=self.clock.now(),
             policy_hash=self.policy.content_hash(),

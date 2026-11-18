@@ -49,4 +49,19 @@ initializes it, caches `tools/list` for the life of the process, and forwards
 a `tools/call` only after an allow. A denied call is not forwarded. Spend is
 reserved before the forward and released if the upstream returns an error.
 
-Stdio only, for now. HTTP transport is on the roadmap.
+## HTTP upstream
+
+`exeat mcp-http` can forward allowed calls to a remote MCP HTTP endpoint.
+The client's `Authorization` header is copied onto the upstream request and
+is not parsed, stored, or written to the audit log. Redirects are not
+followed, so the bearer token is not sent to another host.
+
+```bash
+python3 -m exeat mcp-http \
+  --policy agent-policy.yaml \
+  --manifest tool-manifest.yaml \
+  --agent clerk \
+  --upstream https://mcp.example.test/mcp
+```
+
+The unofficial Encord Merlin guard uses this path. See [Encord Merlin](encord.md).

@@ -18,6 +18,7 @@ from exeat.policy.model import (
     Manifest,
     Org,
     Policy,
+    RateLimit,
     Role,
     ScopeSet,
     SpendLimits,
@@ -115,11 +116,14 @@ def _role(value: object, where: str) -> Role:
         urls=_scope(mapping.get("scopes"), where, "urls"),
         tables=_scope(mapping.get("scopes"), where, "tables"),
         approvals=_approvals(mapping.get("approvals", []), f"{where}.approvals"),
+        rates=_rates(mapping.get("rates", []), f"{where}.rates"),
     )
 
 
 def _agent(value: object, where: str) -> Agent:
     mapping = _mapping(value, where)
+    if "rates" in mapping:
+        raise PolicyError(f"{where}.rates belongs on a role. Agents inherit rate limits and cannot raise them.")
     return Agent(
         name=_ident(mapping, "name", where),
         role=_ident(mapping, "role", where),
@@ -173,6 +177,23 @@ def _arguments(value: object, where: str) -> tuple[Argument, ...]:
         )
     _unique((arg.name for arg in arguments), where)
     return tuple(arguments)
+
+
+def _rates(value: object, where: str) -> tuple[RateLimit, ...]:
+    items = _list(value, where)
+    limits: list[RateLimit] = []
+    for index, item in enumerate(items):
+        mapping = _mapping(item, f"{where}[{index}]")
+        name = _ident(mapping, "name", f"{where}[{index}]")
+        tools = frozenset(_tools(mapping.get("tools"), f"{where}[{index}].tools"))
+        if not tools:
+            raise PolicyError(f"{where}[{index}].tools must list at least one tool")
+        per_minute = mapping.get("per_minute")
+        if isinstance(per_minute, bool) or not isinstance(per_minute, int) or per_minute < 1:
+            raise PolicyError(f"{where}[{index}].per_minute must be a positive integer")
+        limits.append(RateLimit(name=name, tools=tools, per_minute=per_minute))
+    _unique((limit.name for limit in limits), where)
+    return tuple(limits)
 
 
 def _approvals(value: object, where: str) -> tuple[ApprovalRule, ...]:

@@ -1,0 +1,98 @@
+# Mock tool shapes for the unofficial Merlin guard.
+# These names were not read from a live Encord Merlin server.
+
+version: 1
+
+tools:
+  - name: list_projects
+    description: List projects the signed-in user can see. Mock shape.
+    risk: low
+    arguments: []
+  - name: get_project
+    description: Read one project. Mock shape.
+    risk: low
+    arguments:
+      - name: project_id
+        type: string
+        required: true
+  - name: search_projects
+    description: Search projects by title. Mock shape.
+    risk: low
+    arguments:
+      - name: query
+        type: string
+        required: true
+  - name: list_project_collaborators
+    description: List collaborators on a project. Mock shape.
+    risk: low
+    arguments:
+      - name: project_id
+        type: string
+        required: true
+  - name: list_workspace_groups
+    description: List workspace groups. Mock shape.
+    risk: low
+    arguments: []
+  - name: add_project_collaborator
+    description: Add a collaborator. Held for a person. Mock shape.
+    risk: high
+    arguments:
+      - name: project_id
+        type: string
+        required: true
+      - name: user_email
+        type: string
+        required: true
+      - name: role
+        type: string
+        required: true
+  - name: remove_project_collaborator
+    description: Remove a collaborator. Held for a person. Mock shape.
+    risk: high
+    arguments:
+      - name: project_id
+        type: string
+        required: true
+      - name: user_email
+        type: string
+        required: true
+  - name: set_project_collaborator_role
+    description: Change a collaborator role, including admin. Held for a person. Mock shape.
+    risk: high
+    arguments:
+      - name: project_id
+        type: string
+        required: true
+      - name: user_email
+        type: string
+        required: true
+      - name: role
+        type: string
+        required: true
+  - name: add_workspace_group_member
+    description: Add a person to a workspace group. Held for a person. Mock shape.
+    risk: high
+    arguments:
+      - name: group_id
+        type: string
+        required: true
+      - name: user_email
+        type: string
+        required: true
+  - name: remove_workspace_group_member
+    description: Remove a person from a workspace group. Held for a person. Mock shape.
+    risk: high
+    arguments:
+      - name: group_id
+        type: string
+        required: true
+      - name: user_email
+        type: string
+        required: true
+  - name: delete_project
+    description: Delete a project. Held for a person. Mock shape.
+    risk: high
+    arguments:
+      - name: project_id
+        type: string
+        required: true

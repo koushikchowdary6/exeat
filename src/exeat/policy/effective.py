@@ -8,6 +8,7 @@ from exeat.policy.model import (
     Agent,
     Effective,
     Policy,
+    RateLimit,
     Role,
     ScopeSet,
     SpendLimits,
@@ -77,6 +78,7 @@ def _empty_role(role: Role) -> Effective:
         urls=ScopeSet(),
         tables=ScopeSet(),
         approvals=(),
+        rates=(),
     )
 
 
@@ -105,7 +107,19 @@ def _merge_role(parent: Effective, role: Role) -> Effective:
         urls=parent.urls.union(role.urls),
         tables=parent.tables.union(role.tables),
         approvals=tuple(approvals),
+        rates=_merge_rates(parent.rates, role.rates),
     )
+
+
+def _merge_rates(parent: tuple[RateLimit, ...], child: tuple[RateLimit, ...]) -> tuple[RateLimit, ...]:
+    merged = list(parent)
+    by_name = {limit.name: index for index, limit in enumerate(merged)}
+    for limit in child:
+        if limit.name in by_name:
+            merged[by_name[limit.name]] = limit
+        else:
+            merged.append(limit)
+    return tuple(merged)
 
 
 def _override_spend(parent: SpendLimits, child: SpendLimits) -> SpendLimits:
@@ -147,6 +161,7 @@ def _narrow(role_effective: Effective, agent: Agent) -> Effective:
             deny=_dedupe(role_effective.tables.deny + agent.tables.deny),
         ),
         approvals=role_effective.approvals,
+        rates=role_effective.rates,
     )
 
 

@@ -27,23 +27,27 @@ class HttpGateway:
         self.sessions: dict[str, tuple[Session, queue.Queue[dict[str, Any] | None]]] = {}
         self._lock = threading.Lock()
 
-    def open_session(self) -> tuple[str, queue.Queue[dict[str, Any] | None]]:
+    def open_session(self, authorization: str | None = None) -> tuple[str, queue.Queue[dict[str, Any] | None]]:
         session_id = secrets.token_hex(8)
         box: queue.Queue[dict[str, Any] | None] = queue.Queue()
+        session = self.session_factory()
+        apply_authorization(session, authorization)
         with self._lock:
-            self.sessions[session_id] = (self.session_factory(), box)
+            self.sessions[session_id] = (session, box)
         return session_id, box
 
     def close_session(self, session_id: str) -> None:
         with self._lock:
             self.sessions.pop(session_id, None)
 
-    def post(self, session_id: str, message: dict[str, Any]) -> None:
+    def post(self, session_id: str, message: dict[str, Any], authorization: str | None = None) -> None:
         with self._lock:
             found = self.sessions.get(session_id)
         if found is None:
             raise KeyError(session_id)
         session, box = found
+        if authorization is not None:
+            apply_authorization(session, authorization)
         response = handle_message(message, session)
         if response is not None:
             box.put(response)
@@ -66,7 +70,7 @@ def _handler(gateway: HttpGateway) -> type[BaseHTTPRequestHandler]:
             if path != "/sse":
                 self.send_error(404)
                 return
-            session_id, box = gateway.open_session()
+            session_id, box = gateway.open_session(_authorization(self))
             self.send_response(200)
             self.send_header("Content-Type", "text/event-stream")
             self.send_header("Cache-Control", "no-store")
@@ -109,7 +113,7 @@ def _handler(gateway: HttpGateway) -> type[BaseHTTPRequestHandler]:
                 self.send_error(400, "JSON object required")
                 return
             try:
-                gateway.post(session_ids[0], message)
+                gateway.post(session_ids[0], message, _authorization(self))
             except KeyError:
                 self.send_error(404, "unknown session")
                 return
@@ -124,6 +128,22 @@ def _handler(gateway: HttpGateway) -> type[BaseHTTPRequestHandler]:
             return
 
     return Handler
+
+
+def apply_authorization(session: Session, authorization: str | None) -> None:
+    """Give the backend the exact Authorization header value. Never log it."""
+
+    backend = getattr(session, "backend", None)
+    setter = getattr(backend, "set_authorization", None)
+    if authorization is not None and callable(setter):
+        setter(authorization)
+
+
+def _authorization(handler: BaseHTTPRequestHandler) -> str | None:
+    value = handler.headers.get("Authorization")
+    if value is None or not value.strip():
+        return None
+    return value
 
 
 def server_banner(host: str, port: int) -> str:

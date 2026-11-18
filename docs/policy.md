@@ -60,6 +60,17 @@ An agent can only narrow the role:
 An agent cannot add a tool, an allow pattern, a recipient, or a ceiling the
 role does not have. That is a load error, not a runtime surprise.
 
+## Rate limits
+
+A role can set `rates`. Each limit names a set of tools and a `per_minute`
+budget. Calls that were allowed or held in the last minute count, including
+other tools in the same limit. The next call is denied. A limit does not
+replace an approval rule: a membership change can be both rare and held.
+
+Agents inherit rate limits. They cannot declare their own, and they cannot
+raise one. Removing a limit, raising `per_minute`, or dropping a tool from a
+limit is an escalation in `exeat diff`.
+
 ## Spend
 
 Amounts are USD, to the cent. Zero and negative amounts are denied, so a

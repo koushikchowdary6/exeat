@@ -1,0 +1,66 @@
+# Unofficial Exeat policy for an Encord Merlin-shaped MCP server.
+# Encord does not endorse this file. Unlisted tools are denied.
+# Collaborator, role, group, and delete calls wait for a person.
+
+version: 1
+
+org:
+  name: Unofficial Merlin guard
+  unit: Project access
+
+roles:
+  - name: merlin-reader
+    description: Read and search projects. This starter is unofficial.
+    tools:
+      - list_projects
+      - get_project
+      - search_projects
+      - list_project_collaborators
+      - list_workspace_groups
+    rates:
+      - name: read-search
+        per_minute: 30
+        tools:
+          - list_projects
+          - get_project
+          - search_projects
+          - list_project_collaborators
+          - list_workspace_groups
+
+  - name: merlin-operator
+    description: Reader, plus membership changes that a person must approve.
+    inherits: merlin-reader
+    tools:
+      - add_project_collaborator
+      - remove_project_collaborator
+      - set_project_collaborator_role
+      - add_workspace_group_member
+      - remove_workspace_group_member
+      - delete_project
+    rates:
+      - name: membership-changes
+        per_minute: 2
+        tools:
+          - add_project_collaborator
+          - remove_project_collaborator
+          - set_project_collaborator_role
+          - add_workspace_group_member
+          - remove_workspace_group_member
+          - delete_project
+    approvals:
+      - name: membership-change
+        tools:
+          - add_project_collaborator
+          - remove_project_collaborator
+          - set_project_collaborator_role
+          - add_workspace_group_member
+          - remove_workspace_group_member
+          - delete_project
+        when:
+          always: true
+        reason: Collaborator, role, group, and delete calls wait for a person.
+
+agents:
+  - name: merlin-assistant
+    role: merlin-operator
+    description: Unofficial agent. It cannot grant itself a role without a person.

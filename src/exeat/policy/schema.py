@@ -45,6 +45,7 @@ POLICY_SCHEMA: dict[str, object] = {
                 "recipients": {"$ref": "#/$defs/recipients"},
                 "scopes": {"$ref": "#/$defs/scopes"},
                 "approvals": {"type": "array", "items": {"$ref": "#/$defs/approval"}},
+                "rates": {"type": "array", "items": {"$ref": "#/$defs/rate"}},
             },
         },
         "agent": {
@@ -93,6 +94,16 @@ POLICY_SCHEMA: dict[str, object] = {
             "properties": {
                 "allow": {"type": "array", "items": {"type": "string"}},
                 "deny": {"type": "array", "items": {"type": "string"}},
+            },
+        },
+        "rate": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["name", "tools", "per_minute"],
+            "properties": {
+                "name": {"type": "string", "pattern": "^[a-z][a-z0-9_-]*$"},
+                "tools": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+                "per_minute": {"type": "integer", "minimum": 1},
             },
         },
         "approval": {
