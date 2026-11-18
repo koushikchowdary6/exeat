@@ -18,7 +18,8 @@ jobs:
           python -m pip install build
           python -m build
       - name: Do not publish
-        run: echo "Private :: Do Not Upload. These artifacts stay in the workflow run."
+        run: |
+          echo "Private :: Do Not Upload. These artifacts stay in the workflow run."
       - uses: actions/upload-artifact@v4
         with:
           name: dist
