@@ -1,0 +1,80 @@
+# Manifest that accompanies the escalated policy.
+# files.read path is downgraded to string on purpose. The runtime safety net
+# still treats `path` as a path; the diff flags the downgrade anyway.
+
+version: 1
+
+tools:
+  - name: ledger.read
+    description: Read one synthetic invoice.
+    risk: low
+    arguments:
+      - name: invoice_id
+        type: string
+        required: true
+      - name: path
+        type: path
+        required: true
+
+  - name: ledger.query
+    description: Query an allowed finance table.
+    risk: medium
+    arguments:
+      - name: table
+        type: table
+        required: true
+      - name: where
+        type: string
+        required: false
+
+  - name: ledger.transfer
+    description: Pay a vendor from the accounts-payable account.
+    risk: high
+    arguments:
+      - name: amount_usd
+        type: spend
+        required: true
+      - name: vendor_id
+        type: string
+        required: true
+      - name: memo
+        type: string
+        required: false
+
+  - name: email.send
+    description: Send one email. The builtin backend does not touch a mail server.
+    risk: high
+    arguments:
+      - name: to
+        type: recipient
+        required: true
+      - name: subject
+        type: string
+        required: true
+      - name: body
+        type: string
+        required: true
+
+  - name: files.read
+    description: Read a file inside an allowed scope.
+    risk: medium
+    arguments:
+      - name: path
+        type: string
+        required: true
+
+  - name: http.get
+    description: Fetch a URL inside an allowed scope. The builtin backend does not use the network.
+    risk: medium
+    arguments:
+      - name: url
+        type: url
+        required: true
+
+  - name: shell.exec
+    description: Run a shell command. This declaration is the escalation.
+    risk: high
+    arguments:
+      - name: command
+        type: string
+        required: true

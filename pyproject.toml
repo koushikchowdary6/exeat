@@ -1,0 +1,67 @@
+[project]
+name = "agentleash"
+description = "Decide what an AI agent is allowed to spend, send, and open."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [{ name = "The Agentleash Authors" }]
+keywords = ["agents", "authorization", "mcp", "policy"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: POSIX",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Private :: Do Not Upload",
+  "Topic :: Security",
+]
+dependencies = ["PyYAML>=6.0.1"]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+dev = ["mypy>=1.13", "pytest>=8.3", "pytest-cov>=6.0", "ruff>=0.8", "types-PyYAML>=6.0"]
+
+[project.scripts]
+agentleash = "agentleash.cli:main"
+
+[tool.hatch.version]
+path = "src/agentleash/brand.py"
+pattern = "VERSION = \"(?P<version>[^\"]+)\""
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q"
+
+[tool.coverage.run]
+branch = true
+source = ["agentleash"]
+omit = ["*/__main__.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]
+
+[tool.mypy]
+python_version = "3.11"
+packages = ["agentleash"]
+mypy_path = "src"
+strict = true
+warn_unused_ignores = true
